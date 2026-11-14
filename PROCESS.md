@@ -5,47 +5,29 @@
 
 ---
 
-## INFORMATION ARCHITECTURE & HIERARCHY OVERHAUL
+## COCKPIT HIERARCHY & SOLID WORKING SURFACES PASS
 
-### 1. Functional Weight Allocation (Implemented)
-- **Weight 5 (Core Tasks — Full Focus):**
-  - View 01 (Mission): 3 large trajectory cards + real-time orbit preview canvas.
-  - View 02 (Vehicle): Booster cards with capacity comparison bars & incompatibility dimming.
-  - View 03 (Build): Chassis CAD wireframe + Subsystem Outfitter with constraint validation.
-  - View 05 (Launch): Verification matrix checklist + Hold-to-confirm launch sequencer.
-  - Bottom persistent flow bar (`[← Back]` and `[Next: Step →]`).
-- **Weight 4 (Design Feasibility — Always Visible):**
-  - Persistent slim top vitals bar: Payload Mass vs limit, Net Power margin, Budget vs cap, Delta-V margin & TWR.
-- **Weight 3 (Decision Guidance — View Focused):**
-  - Dynamic trajectory preview in View 01.
-  - Vehicle capacity vs payload mass progress tracks in View 02.
-  - Component engineering specs, spring CAD highlights, and constraint failure explanations in View 03.
-  - Orbit HUD with Runge-Kutta 4 (RK4) numerical integration and 8-ball Navball in View 04.
-- **Weight 2 (Explanatory & Educational — On Demand):**
-  - Slide-out Chief Avionics Advisor drawer badged with active warning count and one-click auto-fixes.
-  - Interactive Astrodynamics Math Panel in View 04 with live KaTeX derivations (Tsiolkovsky curve, Vis-Viva speed, Kepler's 3rd period, Hohmann transfers, and Kepler's 2nd law equal-area sweep).
-  - Toast notification system with Undo stack (`Ctrl+Z`).
-- **Weight 1 (Ambient Telemetry — Collapsed):**
-  - Collapsible compact Telemetry popover (`[📡 Telemetry ▾]`) containing MET clock, UTC reference, DSN carrier lock, EIRP, and downlink rate.
-  - Keyboard shortcuts popover (`?`).
-  - Purged decorative jargon: Removed fake "Cipher Secure", fake "Doppler Residual", and decorative bus strings.
+### 1. Unified Cockpit Dashboard Restored
+- Reverted the multi-step pagination back to the unified, rich mission-control cockpit view (matching Target Image 1).
+- All operational panels (Sidebar, Top HUD, Trajectory & Vehicle Selectors, 4 Telemetry Gauges, Primary Flight Display & Conic, Payload Outfitter, Chief Advisor Console, and Stage-0 Launch Sequencer) are simultaneously visible in one commanding flight deck.
 
-### 2. Universal Button System
-- Structured states across all buttons: default, hover (lift), active/pressed (scale 0.97, 80ms), focus-visible (2px ring), disabled (with explanatory tooltips), and selected.
-- Hold-to-confirm launch button: 1.0s radial SVG circle fill with cancellation on mouseup/touchend.
+### 2. Cockpit Visual Hierarchy ("Steering Wheel" Principle)
+- **Primary Flight Display (Center Instrument):**
+  - Framed as a solid avionics unit with a solid dark cockpit bezel (`border: 2px solid #0F172A`).
+  - High-visibility vector lines (`#00E5FF` solid cyan), concentric radar range rings, rotating crosshair reticle, active spacecraft marker, and the 8-Ball attitude indicator (Navball).
+- **Primary Telemetry Gauges (Vitals):**
+  - 4 solid, high-contrast cards right in the upper line of sight (Payload Mass, Power Margin, Project Budget, Data Throughput).
+  - Prominent 22px bold monospace values with solid, non-translucent progress bars and crisp status chips (`[NOMINAL]`, `[SURPLUS]`, `[FUNDED]`, `[NOMINAL LINK]`).
+- **Cockpit Switches (Trajectory 01 & Launch Vehicle 02):**
+  - Solid tactile buttons with rigid borders (`2px solid #0284C7`), high-contrast active states, and immediate feedback.
+- **Master Launch Sequencer (Primary Actuator):**
+  - Styled as the unmistakable Master Arm / Ignition switch: solid dark frame, prominent border, glowing readiness indicator, and tactile press response.
+- **Payload Outfitter Dock:**
+  - Solid module cards with high-contrast `[EQUIPPED]` vs `[STOWED]` indicators and clear category tabs (`PWR`, `COMM`, `INST`, `PROP`, `CHAS`).
+- **Chief Avionics Advisor Console:**
+  - Solid terminal box with high-contrast, color-coded engineering diagnostics (amber warnings, red criticals, green nominals).
 
-### 3. Astrodynamics & Animation Engine
-- True Runge-Kutta 4th Order (RK4) numerical integrator for orbital motion:
-  $$\frac{d\vec{r}}{dt} = \vec{v}, \quad \frac{d\vec{v}}{dt} = -\frac{\mu}{r^3}\vec{r}$$
-- Time-warp controls (1x, 100x, 10,000x) that scale physics timestep $\Delta t$.
-- Multi-stage cinematic launch sequence: ignition, max-Q, staging, fairing separation, orbit insertion; skippable with `Esc` into the Orbit HUD.
-- `prefers-reduced-motion` compliance.
-
-### 4. Mathematical Panel
-- Tsiolkovsky Rocket Equation with live mass ratio $m_0/m_f$ and interactive curve.
-- Vis-Viva orbital speed calculation with live distance and semi-major axis.
-- Kepler's Third Law orbital period derivation.
-- Hohmann transfer 2-burn calculations ($\Delta v_1, \Delta v_2$).
-- Kepler's Second Law equal-area sweep canvas demonstrating $\frac{dA}{dt} = \text{const}$.
-- Power budget sum with breakdown.
-- Interactive variable hover highlights (hovering variables pulses corresponding metrics in the vitals bar).
+### 3. Removal of Translucent Washouts
+- Eliminated weak `rgba(...)` translucent washes.
+- Applied rigid, solid, working colors with sharp contrast (`#FFFFFF`, `#F1F5F9`, `#EAEFF5`, `#0F172A`, `#1E293B`, `#070B14`).
+- All panel borders are crisp, rigid 1.5px and 2px solid strokes.
