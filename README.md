@@ -19,18 +19,21 @@ python -m http.server 8000
 ## Tech Stack
 
 - **100% Vanilla HTML5, CSS3, ES6 JavaScript** — zero external dependencies
-- **Web Audio API** — synthesized UI sounds (no audio files)
-- **DocumentFragment** rendering, `requestAnimationFrame` animation
-- **~66 KB total** — loads instantly on any connection
+- **Kinetic Particle Engine** — 3,000 to 12,000 oriented dashes, divergence-free curl noise, spring physics, and 8-bucket single draw pass
+- **Web Audio API** — synthesized UI sounds (no external audio assets)
+- **DocumentFragment** rendering, `requestAnimationFrame` single-loop physics
+- **Self-contained & ultra-light** — loads instantly on any connection, offline capable
 
 ## Controls
 
 | Key | Action |
 |-----|--------|
-| `1` `2` `3` | Select mission (LEO / Lunar / Mars) |
-| `Q` `W` `E` `R` `T` | Switch subsystem tab |
-| `M` | Toggle audio |
-| `Space` | Launch (when all systems nominal) |
+| `1` `2` `3` | Select mission profile (LEO / Lunar / Mars) |
+| `Q` `W` `E` `R` `T` | Switch subsystem outfitter dock |
+| `M` | Toggle synthesized cockpit audio |
+| `Space` | Stage-0 Master Launch Sequencer (when nominal) |
+| `Esc` | Skip 6-second kinetic particle intro / close modals |
+| `Click / Touch` | Emit radial particle shockwave & interact with flow field |
 
 ## Data Sources
 

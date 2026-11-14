@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════
    AETHEL // JPL — Space Mission Engineering Simulator
-   Core Avionics & Telemetry Engine — Vanilla ES6 State Machine
+   Pass B: Kinetic Particle Engine, Reactive Flow Fields & Avionics
+   100% Vanilla ES6 JavaScript — Single rAF Loop & Spring Physics
    ═══════════════════════════════════════════════════════════════ */
 
 'use strict';
@@ -153,66 +154,66 @@ const SUBSYSTEMS = {
     items: [
       {
         id: 'imager-hires',
-        name: 'HiRES Multispectral Imager',
-        desc: 'Pushbroom scanner with 0.5m GSD from 500km. 12-band VNIR/SWIR sensor.',
-        mass: 65,
-        power: -90,
-        cost: 45,
-        data: -15,
-        svgTarget: 'instruments'
-      },
-      {
-        id: 'spectrometer-mass',
-        name: 'Quadrupole Mass Spectrometer',
-        desc: 'In-situ atmospheric gas and volatile analysis with electron-impact source.',
-        mass: 28,
-        power: -55,
-        cost: 30,
-        data: -3,
-        svgTarget: 'instruments'
+        name: 'High-Resolution Multispectral Imager',
+        desc: 'TDI CCD camera with 0.3m ground resolution at 500km altitude.',
+        mass: 95,
+        power: -80,
+        cost: 35,
+        data: -25,
+        svgTarget: null
       },
       {
         id: 'radar-sar',
-        name: 'Synthetic Aperture Radar (SAR)',
-        desc: 'C-band all-weather radar with 5m resolution for planetary topographic mapping.',
-        mass: 150,
-        power: -200,
-        cost: 60,
-        data: -25,
-        svgTarget: 'instruments'
+        name: 'L-Band Synthetic Aperture Radar',
+        desc: 'Interferometric radar for sub-surface planetary ice and crust mapping.',
+        mass: 220,
+        power: -320,
+        cost: 65,
+        data: -45,
+        svgTarget: null
+      },
+      {
+        id: 'spectrometer-mass',
+        name: 'Neutral Gas & Ion Mass Spectrometer',
+        desc: 'Quadrupole spectrometer for exosphere chemical sampling.',
+        mass: 35,
+        power: -40,
+        cost: 20,
+        data: -8,
+        svgTarget: null
       }
     ]
   },
   propulsion: {
-    label: 'Propulsion',
+    label: 'Propulsion Systems',
     items: [
       {
         id: 'thruster-coldgas',
-        name: 'Cold Gas RCS Attitude Array',
-        desc: 'High-purity nitrogen micro-thrusters for 3-axis precision fine stabilization.',
-        mass: 162,
-        power: -40,
-        cost: 10,
-        data: 0,
-        svgTarget: 'thruster'
-      },
-      {
-        id: 'thruster-biprop',
-        name: 'MMH/NTO Bipropellant Engine',
-        desc: '445N thrust, Isp 320s. Restartable for orbit circularization burns.',
-        mass: 180,
+        name: 'GN2 Cold Gas Reaction Control',
+        desc: 'Nitrogen gas thrusters (Isp: 70s) for precision momentum dumping.',
+        mass: 35,
         power: -20,
-        cost: 25,
+        cost: 8,
         data: 0,
         svgTarget: 'thruster'
       },
       {
         id: 'thruster-ion',
-        name: 'Xenon Ion Thruster (NEXT-C)',
-        desc: 'NASA Evolutionary Xenon Thruster. 6.9kW, 236mN, Isp 4190s high efficiency.',
-        mass: 95,
-        power: -300,
-        cost: 35,
+        name: 'NEXT-C Gridded Xenon Ion Engine',
+        desc: 'High specific impulse (Isp: 4,100s) electro-hydrodynamic thruster.',
+        mass: 140,
+        power: -280,
+        cost: 45,
+        data: 0,
+        svgTarget: 'thruster'
+      },
+      {
+        id: 'thruster-monoprop',
+        name: 'Hydrazine Monopropellant System',
+        desc: 'Catalytic decomposition thruster (Isp: 230s) for orbital insertion burns.',
+        mass: 90,
+        power: -35,
+        cost: 15,
         data: 0,
         svgTarget: 'thruster'
       }
@@ -222,21 +223,21 @@ const SUBSYSTEMS = {
     label: 'Spacecraft Bus / Chassis',
     items: [
       {
-        id: 'chassis-small',
-        name: 'SmallSat Bus (ESPA-Class)',
-        desc: 'Secondary payload adapter compatible. Integrated avionics and battery bay.',
-        mass: 90,
+        id: 'chassis-smallsat',
+        name: 'ESPA-Class SmallSat Bus',
+        desc: 'Standardized secondary payload adapter ring compatible chassis.',
+        mass: 150,
         power: -30,
         cost: 15,
         data: 0,
         svgTarget: null
       },
       {
-        id: 'chassis-medium',
-        name: 'Medium Explorer Platform',
-        desc: 'Heritage MidEx chassis with modular avionics and honeycombed panels.',
-        mass: 250,
-        power: -60,
+        id: 'chassis-composite',
+        name: 'Carbon-Composite Hexagonal Bus',
+        desc: 'Ultra-lightweight truss structure with embedded heat pipes and MLI.',
+        mass: 280,
+        power: -50,
         cost: 40,
         data: 0,
         svgTarget: null
@@ -259,7 +260,6 @@ const SUBSYSTEMS = {
 const STATE = {
   mission: 'leo',
   vehicle: 'falcon9',
-  // Initial 5 equipped components matching target telemetry specs
   equipped: new Set([
     'solar-ultraflex',
     'antenna-kaband',
@@ -268,16 +268,23 @@ const STATE = {
     'thruster-coldgas'
   ]),
   audioEnabled: false,
+  motionMode: 'full', // 'full' | 'reduced' | 'off'
   activeTab: 'power',
-  activeView: 'trajectory',
+  activeView: 'trajectory', // 'cad' | 'trajectory' | 'vehicle'
   timeWarp: 1,
-  metOffsetSec: 142 * 86400 + 8 * 3600 + 24 * 60 + 19, // T+142:08:24:19
+  metOffsetSec: 142 * 86400 + 8 * 3600 + 24 * 60 + 19,
   metStartTime: Date.now(),
   launchReady: true,
-  animationAngle: 0
+  animationAngle: 0,
+  metrics: {
+    mass: 460,
+    power: 165,
+    cost: 192,
+    data: 62
+  }
 };
 
-// ── FORMAT CURRENCY HELPER (Guarantees no stray backslashes) ──
+// ── FORMAT CURRENCY HELPER ──
 function formatCurrency(amountMillions) {
   if (amountMillions >= 1000) {
     return '$' + (amountMillions / 1000).toFixed(1) + 'B';
@@ -292,12 +299,26 @@ function cacheDom() {
   DOM.loader = document.getElementById('loading-skeleton');
   DOM.errorScreen = document.getElementById('error-screen');
   DOM.errorMsg = document.getElementById('error-msg');
+  DOM.fxCanvas = document.getElementById('fx-canvas');
+  DOM.introOverlay = document.getElementById('intro-overlay');
+  DOM.btnSkipIntro = document.getElementById('btn-skip-intro');
 
   // Clocks & Readouts
   DOM.metClock = document.getElementById('met-clock');
   DOM.utcClock = document.getElementById('utc-clock');
   DOM.hudOrbit = document.getElementById('hud-orbit');
   DOM.missionIdBadge = document.getElementById('mission-id-badge');
+
+  // Controls & Action Buttons
+  DOM.btnAudio = document.getElementById('btn-audio');
+  DOM.audioState = document.getElementById('audio-state');
+  DOM.btnMotionMode = document.getElementById('btn-motion-mode');
+  DOM.motionState = document.getElementById('motion-state');
+  DOM.btnPlayIntro = document.getElementById('btn-play-intro');
+  DOM.fpsBadge = document.getElementById('fps-badge');
+  DOM.fpsDot = document.getElementById('fps-dot');
+  DOM.fpsVal = document.getElementById('fps-val');
+  DOM.fpsMeta = document.getElementById('fps-meta');
 
   // Top Selector
   DOM.trajectoryReq = document.getElementById('trajectory-req');
@@ -338,6 +359,11 @@ function cacheDom() {
   DOM.dataFill = document.getElementById('data-fill');
   DOM.gaugeData = document.getElementById('gauge-data');
 
+  // Marquee Ribbon
+  DOM.marqueeTrack = document.getElementById('marquee-track');
+  DOM.marqueeContent = document.getElementById('marquee-content');
+  DOM.marqueeChips = document.querySelectorAll('.marquee-chip');
+
   // Middle HUD elements
   DOM.hudMainTitle = document.getElementById('hud-main-title');
   DOM.hudMetaText = document.getElementById('hud-meta-text');
@@ -370,19 +396,13 @@ function cacheDom() {
   DOM.launchProgressFill = document.getElementById('launch-progress-fill');
   DOM.launchTargetDesc = document.getElementById('launch-target-desc');
 
-  // Audio & Navigation
-  DOM.btnAudio = document.getElementById('btn-audio');
-  DOM.audioState = document.getElementById('audio-state');
-  DOM.sideDownlink = document.getElementById('side-downlink');
-  DOM.sideDoppler = document.getElementById('side-doppler');
-
   // Modals
   DOM.sourcesModal = document.getElementById('sources-modal');
   DOM.btnSources = document.getElementById('btn-sources');
   DOM.btnCloseSources = document.getElementById('btn-close-sources');
 }
 
-// ── NATIVE WEB AUDIO SYNTHESIS (Zero External Audio Assets) ──
+// ── NATIVE WEB AUDIO SYNTHESIS ──
 let audioCtx = null;
 function initAudio() {
   if (audioCtx) return;
@@ -408,7 +428,7 @@ function playTone(freq, duration, type, volume) {
     osc.start();
     osc.stop(audioCtx.currentTime + duration);
   } catch (e) {
-    // Graceful fallback for audio restriction
+    // Audio restriction fallback
   }
 }
 
@@ -421,7 +441,1032 @@ function sfxLaunch() {
   playTone(110, 1.2, 'sine', 0.08);
 }
 
-// ── HELPER: GET EQUIPPED MODULES LIST ──
+// ── SECOND-ORDER SPRING PHYSICS SOLVER ──
+class Spring {
+  constructor({ stiffness = 180, damping = 14, mass = 1, value = 0 } = {}) {
+    this.stiffness = stiffness;
+    this.damping = damping;
+    this.mass = mass;
+    this.val = value;
+    this.target = value;
+    this.vel = 0;
+  }
+  set(target) {
+    this.target = target;
+  }
+  update(dt = 0.016) {
+    const fSpring = -this.stiffness * (this.val - this.target);
+    const fDamper = -this.damping * this.vel;
+    const accel = (fSpring + fDamper) / this.mass;
+    this.vel += accel * dt;
+    this.val += this.vel * dt;
+    return this.val;
+  }
+}
+
+// UI Springs for smooth gauge bar motion
+const GAUGE_SPRINGS = {
+  mass: new Spring({ stiffness: 140, damping: 15, value: 2.0 }),
+  power: new Spring({ stiffness: 140, damping: 15, value: 50.0 }),
+  budget: new Spring({ stiffness: 140, damping: 15, value: 76.8 }),
+  data: new Spring({ stiffness: 140, damping: 15, value: 100.0 })
+};
+
+// ═══════════════════════════════════════════════════════════════
+// PARTICLE ENGINE (PHYSICAL, REACTIVE & ORIENTED DASHES)
+// ═══════════════════════════════════════════════════════════════
+class ParticleField {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d', { alpha: false });
+    this.maxCount = 12000;
+    this.minCount = 3000;
+    this.activeCount = 7500;
+
+    // Typed arrays for high-performance contiguous memory
+    this.x = new Float32Array(this.maxCount);
+    this.y = new Float32Array(this.maxCount);
+    this.vx = new Float32Array(this.maxCount);
+    this.vy = new Float32Array(this.maxCount);
+    this.homeX = new Float32Array(this.maxCount);
+    this.homeY = new Float32Array(this.maxCount);
+    this.oldHomeX = new Float32Array(this.maxCount);
+    this.oldHomeY = new Float32Array(this.maxCount);
+    this.targetHomeX = new Float32Array(this.maxCount);
+    this.targetHomeY = new Float32Array(this.maxCount);
+    this.speed = new Float32Array(this.maxCount);
+    this.dashLen = new Float32Array(this.maxCount);
+    this.cosA = new Float32Array(this.maxCount);
+    this.sinA = new Float32Array(this.maxCount);
+    this.bucket = new Uint8Array(this.maxCount);
+    this.layer = new Uint8Array(this.maxCount); // 0: background slow depth, 1: foreground flow
+    this.phase = new Float32Array(this.maxCount);
+
+    // Pre-allocated bucket lists for zero-GC single draw pass
+    this.bucketLists = Array.from({ length: 8 }, () => new Int32Array(this.maxCount));
+    this.bucketLengths = new Int32Array(8);
+
+    // 8 Pre-computed color buckets (accent cyan -> solar amber -> rocket flame)
+    this.bucketColors = [
+      'rgba(0, 229, 255, 0.40)', // 0: Deep Cyan (flow field base)
+      'rgba(56, 189, 248, 0.65)', // 1: Electric Cyan (moderate flow)
+      'rgba(96, 165, 250, 0.80)', // 2: Azure Horizon (high speed)
+      'rgba(255, 255, 255, 0.95)', // 3: Brilliant White (hypersonic / core)
+      'rgba(253, 224, 71, 0.85)', // 4: Solar Gold (payload / energy)
+      'rgba(245, 158, 11, 0.90)', // 5: Amber Flare (maneuver nodes)
+      'rgba(249, 115, 22, 0.95)', // 6: Rocket Flame (combustion)
+      'rgba(239, 68, 68, 0.95)'  // 7: Crimson Thrust (high energy / alarm)
+    ];
+
+    // Interaction state
+    this.cursorX = -9999;
+    this.cursorY = -9999;
+    this.cursorActive = false;
+    this.shockwaves = []; // { x, y, radius, maxRadius, strength }
+
+    // Morphing state
+    this.morphProgress = 1.0;
+    this.morphStartTime = 0;
+    this.morphDuration = 750; // ms
+
+    // Simulation time & mode
+    this.simTime = 0;
+    this.currentShape = 'leo';
+    this.motionMode = 'full'; // 'full' | 'reduced' | 'off'
+
+    // Kepler sweep & body trail
+    this.satAngle = 0;
+    this.trailPoints = [];
+
+    // Launch plume & debris state
+    this.isLaunching = false;
+    this.launchPhase = 0;
+    this.launchTimer = 0;
+    this.plumeParticles = [];
+    this.debrisParticles = [];
+    this.screenShake = 0;
+
+    // Viewport scaling with dpr
+    this.dpr = window.devicePixelRatio || 1;
+    this.width = canvas.width;
+    this.height = canvas.height;
+
+    this.setupResizeObserver();
+    this.setupInteractivity();
+    this.initParticles();
+    this.buildShape('leo', true);
+  }
+
+  setupResizeObserver() {
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          const rect = entry.contentRect;
+          if (rect.width > 0 && rect.height > 0) {
+            this.resize(rect.width, rect.height);
+          }
+        }
+      });
+      ro.observe(this.canvas.parentElement || this.canvas);
+    }
+  }
+
+  resize(w, h) {
+    this.dpr = window.devicePixelRatio || 1;
+    this.width = Math.floor(w);
+    this.height = Math.floor(h);
+    this.canvas.width = Math.floor(w * this.dpr);
+    this.canvas.height = Math.floor(h * this.dpr);
+    this.ctx.scale(this.dpr, this.dpr);
+    this.buildShape(this.currentShape, true);
+  }
+
+  setupInteractivity() {
+    const getPos = e => {
+      const rect = this.canvas.getBoundingClientRect();
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    };
+
+    this.canvas.addEventListener('mousemove', e => {
+      const pos = getPos(e);
+      this.cursorX = pos.x;
+      this.cursorY = pos.y;
+      this.cursorActive = true;
+    });
+
+    this.canvas.addEventListener('mouseleave', () => {
+      this.cursorActive = false;
+      this.cursorX = -9999;
+      this.cursorY = -9999;
+    });
+
+    this.canvas.addEventListener('click', e => {
+      const pos = getPos(e);
+      this.emitShockwave(pos.x, pos.y);
+      sfxClick();
+    });
+
+    // Touch support
+    this.canvas.addEventListener('touchmove', e => {
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        const rect = this.canvas.getBoundingClientRect();
+        this.cursorX = touch.clientX - rect.left;
+        this.cursorY = touch.clientY - rect.top;
+        this.cursorActive = true;
+      }
+    }, { passive: true });
+
+    this.canvas.addEventListener('touchend', () => {
+      this.cursorActive = false;
+    });
+  }
+
+  emitShockwave(x, y, maxR = 260, strength = 1.0) {
+    this.shockwaves.push({
+      x,
+      y,
+      radius: 0,
+      maxRadius: maxR,
+      strength
+    });
+  }
+
+  initParticles() {
+    const N = this.maxCount;
+    const w = this.width || 620;
+    const h = this.height || 290;
+
+    for (let i = 0; i < N; i++) {
+      this.x[i] = Math.random() * w;
+      this.y[i] = Math.random() * h;
+      this.vx[i] = (Math.random() - 0.5) * 15;
+      this.vy[i] = (Math.random() - 0.5) * 15;
+      this.homeX[i] = this.x[i];
+      this.homeY[i] = this.y[i];
+      this.oldHomeX[i] = this.x[i];
+      this.oldHomeY[i] = this.y[i];
+      this.targetHomeX[i] = this.x[i];
+      this.targetHomeY[i] = this.y[i];
+      this.speed[i] = 1.0;
+      this.dashLen[i] = 4.0;
+      this.cosA[i] = 1.0;
+      this.sinA[i] = 0.0;
+      this.bucket[i] = 0;
+      this.layer[i] = Math.random() < 0.15 ? 0 : 1; // 15% slow background parallax layer
+      this.phase[i] = Math.random() * Math.PI * 2;
+    }
+  }
+
+  buildShape(shapeName, immediate = false) {
+    this.currentShape = shapeName;
+    const w = this.width || 620;
+    const h = this.height || 290;
+    const cx = w / 2;
+    const cy = h / 2;
+    const N = this.maxCount;
+
+    if (!immediate) {
+      for (let i = 0; i < N; i++) {
+        this.oldHomeX[i] = this.homeX[i];
+        this.oldHomeY[i] = this.homeY[i];
+      }
+      this.morphProgress = 0.0;
+      this.morphStartTime = performance.now();
+    }
+
+    if (shapeName === 'leo') {
+      // ── LEO SATELLITE: Circular Orbit Ring + Altitude Shells + Earth Core ──
+      for (let i = 0; i < N; i++) {
+        const u = i / N;
+        if (u < 0.65) {
+          // Primary Orbit Ring (500 km)
+          const angle = (u / 0.65) * Math.PI * 2;
+          const r = 85 + (Math.random() - 0.5) * 8;
+          this.targetHomeX[i] = cx + Math.cos(angle) * r;
+          this.targetHomeY[i] = cy + Math.sin(angle) * r;
+        } else if (u < 0.85) {
+          // Central Earth Core Sphere
+          const r = Math.sqrt(Math.random()) * 26;
+          const angle = Math.random() * Math.PI * 2;
+          this.targetHomeX[i] = cx + Math.cos(angle) * r;
+          this.targetHomeY[i] = cy + Math.sin(angle) * r;
+        } else {
+          // Outer Altitude Shells (GEO & DSN Links)
+          const shellR = Math.random() < 0.5 ? 122 : 148;
+          const angle = Math.random() * Math.PI * 2;
+          this.targetHomeX[i] = cx + Math.cos(angle) * (shellR + (Math.random() - 0.5) * 6);
+          this.targetHomeY[i] = cy + Math.sin(angle) * (shellR + (Math.random() - 0.5) * 6);
+        }
+      }
+    } else if (shapeName === 'lunar') {
+      // ── LUNAR ROVER: Earth-Moon Trans-Lunar Injection (TLI) Conic Arc ──
+      const earthX = cx - 170;
+      const earthY = cy;
+      const moonX = cx + 180;
+      const moonY = cy;
+
+      for (let i = 0; i < N; i++) {
+        const u = i / N;
+        if (u < 0.20) {
+          // Earth Sphere
+          const r = Math.sqrt(Math.random()) * 24;
+          const angle = Math.random() * Math.PI * 2;
+          this.targetHomeX[i] = earthX + Math.cos(angle) * r;
+          this.targetHomeY[i] = earthY + Math.sin(angle) * r;
+        } else if (u < 0.30) {
+          // Moon Sphere
+          const r = Math.sqrt(Math.random()) * 14;
+          const angle = Math.random() * Math.PI * 2;
+          this.targetHomeX[i] = moonX + Math.cos(angle) * r;
+          this.targetHomeY[i] = moonY + Math.sin(angle) * r;
+        } else {
+          // TLI Free-Return Transfer Arc (Bézier Trajectory)
+          const t = (u - 0.30) / 0.70;
+          const p0x = earthX + 15, p0y = earthY - 20;
+          const p1x = cx - 40, p1y = cy - 85;
+          const p2x = cx + 60, p2y = cy - 70;
+          const p3x = moonX - 10, p3y = moonY - 15;
+
+          const omt = 1 - t;
+          const bx = omt*omt*omt*p0x + 3*omt*omt*t*p1x + 3*omt*t*t*p2x + t*t*t*p3x;
+          const by = omt*omt*omt*p0y + 3*omt*omt*t*p1y + 3*omt*t*t*p2y + t*t*t*p3y;
+          const jitter = (Math.random() - 0.5) * 14;
+          this.targetHomeX[i] = bx + jitter * 0.4;
+          this.targetHomeY[i] = by + jitter;
+        }
+      }
+    } else if (shapeName === 'mars') {
+      // ── MARS PROBE: Interplanetary Hohmann Transfer Semi-Ellipse ──
+      const sunX = cx - 80;
+      const sunY = cy;
+
+      for (let i = 0; i < N; i++) {
+        const u = i / N;
+        if (u < 0.15) {
+          // Central Sun Flare
+          const r = Math.sqrt(Math.random()) * 18;
+          const angle = Math.random() * Math.PI * 2;
+          this.targetHomeX[i] = sunX + Math.cos(angle) * r;
+          this.targetHomeY[i] = sunY + Math.sin(angle) * r;
+        } else if (u < 0.35) {
+          // Earth 1 AU Orbit Arc
+          const angle = (u - 0.15) / 0.20 * Math.PI * 1.5 - Math.PI * 0.5;
+          const r = 62 + (Math.random() - 0.5) * 5;
+          this.targetHomeX[i] = sunX + Math.cos(angle) * r;
+          this.targetHomeY[i] = sunY + Math.sin(angle) * r;
+        } else if (u < 0.55) {
+          // Mars 1.52 AU Orbit Arc
+          const angle = (u - 0.35) / 0.20 * Math.PI * 1.5 - Math.PI * 0.5;
+          const r = 185 + (Math.random() - 0.5) * 6;
+          this.targetHomeX[i] = sunX + Math.cos(angle) * r;
+          this.targetHomeY[i] = sunY + Math.sin(angle) * r;
+        } else {
+          // Hohmann Semi-Elliptical Transfer Conic
+          const t = (u - 0.55) / 0.45;
+          const angle = -Math.PI * 0.5 + t * Math.PI;
+          const a = 124; // semi-major
+          const b = 88;  // semi-minor
+          const ex = sunX + Math.cos(angle) * a + 40;
+          const ey = sunY + Math.sin(angle) * b;
+          const jitter = (Math.random() - 0.5) * 12;
+          this.targetHomeX[i] = ex + jitter * 0.5;
+          this.targetHomeY[i] = ey + jitter;
+        }
+      }
+    } else if (shapeName === 'vehicle') {
+      // ── VEHICLE VIEW: Rocket Silhouette with Dynamic Payload Mass Column ──
+      const vehicle = VEHICLES[STATE.vehicle] || VEHICLES.falcon9;
+      const heightScale = STATE.vehicle === 'sls' ? 1.25 : (STATE.vehicle === 'falconheavy' ? 1.1 : 1.0);
+      const totalH = 200 * heightScale;
+      const botY = cy + totalH * 0.45;
+      const topY = cy - totalH * 0.45;
+      const coreW = STATE.vehicle === 'falconheavy' ? 70 : 28;
+
+      const payloadRatio = Math.min(1.0, STATE.metrics.mass / vehicle.mass);
+      const fairingTop = topY;
+      const fairingBot = topY + 45;
+      const fillHeight = (fairingBot - fairingTop) * payloadRatio;
+
+      for (let i = 0; i < N; i++) {
+        const u = i / N;
+        if (u < 0.30) {
+          // Payload Bay Dynamic Particle Fill (Solar Gold Column)
+          const fillY = fairingBot - Math.random() * fillHeight;
+          const span = 16 * (1 - (fairingBot - fillY) / 50);
+          this.targetHomeX[i] = cx + (Math.random() - 0.5) * span;
+          this.targetHomeY[i] = fillY;
+        } else if (u < 0.60) {
+          // Booster Structural Shell
+          const y = fairingBot + Math.random() * (botY - fairingBot);
+          const edge = Math.random() < 0.5 ? -coreW / 2 : coreW / 2;
+          this.targetHomeX[i] = cx + edge + (Math.random() - 0.5) * 4;
+          this.targetHomeY[i] = y;
+        } else if (u < 0.85) {
+          // Booster Internal Grid & Stringers
+          const y = fairingBot + Math.random() * (botY - fairingBot);
+          this.targetHomeX[i] = cx + (Math.random() - 0.5) * coreW;
+          this.targetHomeY[i] = y;
+        } else {
+          // Engine Bells & Landing Legs Base
+          const legSide = Math.random() < 0.5 ? -1 : 1;
+          const legT = Math.random();
+          this.targetHomeX[i] = cx + legSide * (coreW / 2 + legT * 28);
+          this.targetHomeY[i] = botY - (1 - legT) * 35;
+        }
+      }
+    }
+
+    if (immediate) {
+      for (let i = 0; i < N; i++) {
+        this.homeX[i] = this.targetHomeX[i];
+        this.homeY[i] = this.targetHomeY[i];
+        this.x[i] = this.homeX[i];
+        this.y[i] = this.homeY[i];
+      }
+    }
+  }
+
+  update(dt) {
+    if (this.motionMode === 'off') return;
+
+    const N = this.activeCount;
+    this.simTime += dt;
+
+    // Handle Eased Morphing
+    if (this.morphProgress < 1.0) {
+      const elapsed = performance.now() - this.morphStartTime;
+      this.morphProgress = Math.min(1.0, elapsed / this.morphDuration);
+      const t = this.morphProgress;
+      const ease = 1 - Math.pow(1 - t, 3); // Cubic ease out
+      for (let i = 0; i < N; i++) {
+        this.homeX[i] = this.oldHomeX[i] + (this.targetHomeX[i] - this.oldHomeX[i]) * ease;
+        this.homeY[i] = this.oldHomeY[i] + (this.targetHomeY[i] - this.oldHomeY[i]) * ease;
+      }
+    }
+
+    // Reduced motion freeze
+    if (this.motionMode === 'reduced') {
+      for (let i = 0; i < N; i++) {
+        this.x[i] = this.homeX[i];
+        this.y[i] = this.homeY[i];
+        this.vx[i] = 0;
+        this.vy[i] = 0;
+        this.speed[i] = 1.0;
+        this.dashLen[i] = 4.0;
+        this.cosA[i] = 1.0;
+        this.sinA[i] = 0.0;
+        this.bucket[i] = 0;
+      }
+      return;
+    }
+
+    // Full Kinetic Flow Integration
+    const time = this.simTime * 0.75;
+    const k1 = 0.008;
+    const k2 = 0.016;
+    const springK = 65.0;
+    const damping = 4.5;
+    const curlStrength = 34.0;
+
+    const cx = this.cursorX;
+    const cy = this.cursorY;
+    const cursorActive = this.cursorActive;
+    const shockwaves = this.shockwaves;
+
+    // Advance shockwaves
+    for (let s = shockwaves.length - 1; s >= 0; s--) {
+      const sw = shockwaves[s];
+      sw.radius += 380 * dt;
+      sw.strength *= (1 - 1.8 * dt);
+      if (sw.radius > sw.maxRadius || sw.strength < 0.02) {
+        shockwaves.splice(s, 1);
+      }
+    }
+
+    // Main particle physics loop
+    for (let i = 0; i < N; i++) {
+      const px = this.x[i];
+      const py = this.y[i];
+      let vx = this.vx[i];
+      let vy = this.vy[i];
+      const hx = this.homeX[i];
+      const hy = this.homeY[i];
+      const layer = this.layer[i];
+
+      // Analytical Divergence-Free Curl Noise
+      const arg1x = k1 * px + time;
+      const arg1y = k1 * py + time;
+      const arg2x = k2 * px - 1.2 * time;
+      const arg2y = k2 * py + 0.9 * time;
+
+      const curlX = -k1 * Math.sin(arg1x) * Math.sin(arg1y) - 0.5 * k2 * Math.sin(arg2x) * Math.sin(arg2y);
+      const curlY = -k1 * Math.cos(arg1x) * Math.cos(arg1y) - 0.5 * k2 * Math.cos(arg2x) * Math.cos(arg2y);
+
+      const layerMult = layer === 0 ? 0.35 : 1.0;
+
+      // Spring force tethered to structural home
+      const fxSpring = -springK * (px - hx);
+      const fySpring = -springK * (py - hy);
+
+      let ax = fxSpring - damping * vx + curlX * curlStrength * layerMult;
+      let ay = fySpring - damping * vy + curlY * curlStrength * layerMult;
+
+      // Cursor Swirl & Push
+      if (cursorActive) {
+        const dx = px - cx;
+        const dy = py - cy;
+        const distSq = dx * dx + dy * dy;
+        if (distSq < 14400) { // 120px radius
+          const dist = Math.sqrt(distSq) + 0.001;
+          const w = (1 - dist / 120);
+          const w2 = w * w;
+          ax += (dx / dist) * 260 * w2;
+          ay += (dy / dist) * 260 * w2;
+          ax += (-dy / dist) * 190 * w2;
+          ay += (dx / dist) * 190 * w2;
+        }
+      }
+
+      // Radial Shockwave Kick
+      for (let s = 0; s < shockwaves.length; s++) {
+        const sw = shockwaves[s];
+        const dx = px - sw.x;
+        const dy = py - sw.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) + 0.001;
+        const diff = Math.abs(dist - sw.radius);
+        if (diff < 35) {
+          const swPulse = (1 - diff / 35) * sw.strength * 480;
+          ax += (dx / dist) * swPulse;
+          ay += (dy / dist) * swPulse;
+        }
+      }
+
+      vx += ax * dt;
+      vy += ay * dt;
+
+      const spdSq = vx * vx + vy * vy;
+      const maxSpd = 360;
+      if (spdSq > maxSpd * maxSpd) {
+        const s = maxSpd / Math.sqrt(spdSq);
+        vx *= s;
+        vy *= s;
+      }
+
+      this.vx[i] = vx;
+      this.vy[i] = vy;
+      this.x[i] = px + vx * dt;
+      this.y[i] = py + vy * dt;
+
+      const spd = Math.sqrt(spdSq);
+      this.speed[i] = spd;
+      const len = Math.max(3.0, Math.min(8.5, 3.2 + spd * 0.025));
+      this.dashLen[i] = len;
+
+      if (spd > 0.001) {
+        this.cosA[i] = vx / spd;
+        this.sinA[i] = vy / spd;
+      } else {
+        this.cosA[i] = 1.0;
+        this.sinA[i] = 0.0;
+      }
+
+      // Color bucket assignment
+      let b = 0;
+      if (layer === 0) {
+        b = 0;
+      } else if (spd < 35) {
+        b = 0;
+      } else if (spd < 75) {
+        b = 1;
+      } else if (spd < 130) {
+        b = 2;
+      } else if (spd < 190) {
+        b = 3;
+      } else if (spd < 250) {
+        b = 4;
+      } else if (spd < 310) {
+        b = 5;
+      } else {
+        b = 6;
+      }
+      this.bucket[i] = b;
+    }
+
+    // Satellite body trail & Kepler wedge tracking
+    this.satAngle += dt * 0.9;
+    if (this.currentShape === 'leo' || this.currentShape === 'mars') {
+      const rx = this.currentShape === 'leo' ? 85 : 140;
+      const ry = this.currentShape === 'leo' ? 85 : 55;
+      const sx = (this.width / 2) + Math.cos(this.satAngle) * rx;
+      const sy = (this.height / 2) + Math.sin(this.satAngle) * ry;
+      this.trailPoints.push({ x: sx, y: sy, age: 0 });
+      if (this.trailPoints.length > 50) this.trailPoints.shift();
+      for (let p = 0; p < this.trailPoints.length; p++) {
+        this.trailPoints[p].age += dt * 1.5;
+      }
+    }
+
+    // Launch plume & debris update
+    if (this.isLaunching) {
+      this.updateLaunchPhysics(dt);
+    }
+  }
+
+  triggerLaunchSequence() {
+    this.isLaunching = true;
+    this.launchPhase = 1;
+    this.launchTimer = 0;
+    this.screenShake = 14;
+    this.plumeParticles = [];
+    this.debrisParticles = [];
+  }
+
+  updateLaunchPhysics(dt) {
+    this.launchTimer += dt;
+    const w = this.width || 620;
+    const h = this.height || 290;
+    const cx = w / 2;
+    const cy = h / 2 + 50;
+
+    // Emit Engine Plume from Nozzle
+    for (let p = 0; p < 18; p++) {
+      const angle = (Math.random() - 0.5) * 0.45 + Math.PI * 0.5;
+      const v = 380 + Math.random() * 320;
+      this.plumeParticles.push({
+        x: cx + (Math.random() - 0.5) * 14,
+        y: cy,
+        vx: Math.cos(angle) * v * 0.35,
+        vy: Math.sin(angle) * v,
+        age: 0,
+        maxAge: 0.8 + Math.random() * 0.6,
+        size: 2 + Math.random() * 4
+      });
+    }
+
+    // Max-Q Transonic Vapor Ring at 3.0s
+    if (this.launchTimer > 3.0 && this.launchPhase === 1) {
+      this.launchPhase = 2;
+      this.emitShockwave(cx, cy - 60, 320, 1.8);
+    }
+
+    // Stage Separation Debris at 5.0s
+    if (this.launchTimer > 5.0 && this.launchPhase === 2) {
+      this.launchPhase = 3;
+      for (let d = 0; d < 40; d++) {
+        this.debrisParticles.push({
+          x: cx + (Math.random() - 0.5) * 20,
+          y: cy - 20,
+          vx: (Math.random() - 0.5) * 180,
+          vy: 80 + Math.random() * 140,
+          rot: Math.random() * Math.PI * 2,
+          vrot: (Math.random() - 0.5) * 8,
+          len: 4 + Math.random() * 8,
+          age: 0,
+          maxAge: 3.0
+        });
+      }
+    }
+
+    // Update Plume Particles
+    for (let i = this.plumeParticles.length - 1; i >= 0; i--) {
+      const p = this.plumeParticles[i];
+      p.age += dt;
+      if (p.age >= p.maxAge) {
+        this.plumeParticles.splice(i, 1);
+        continue;
+      }
+      p.vx *= (1 - 1.2 * dt); // Drag
+      p.vy *= (1 - 0.9 * dt);
+      p.vy -= 120 * dt;       // Buoyancy upward drift
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.size += dt * 10;
+    }
+
+    // Update Debris Particles
+    for (let i = this.debrisParticles.length - 1; i >= 0; i--) {
+      const d = this.debrisParticles[i];
+      d.age += dt;
+      if (d.age >= d.maxAge) {
+        this.debrisParticles.splice(i, 1);
+        continue;
+      }
+      d.x += d.vx * dt;
+      d.y += d.vy * dt;
+      d.rot += d.vrot * dt;
+    }
+
+    // Orbital insertion bloom at 7.5s
+    if (this.launchTimer > 7.5 && this.isLaunching) {
+      this.isLaunching = false;
+      this.emitShockwave(cx, cy, 380, 2.0);
+      this.buildShape('leo');
+    }
+  }
+
+  draw() {
+    if (this.motionMode === 'off') return;
+
+    const ctx = this.ctx;
+    const w = this.width;
+    const h = this.height;
+    const N = this.activeCount;
+
+    ctx.save();
+
+    // Procedural screen shake
+    if (this.screenShake > 0.1) {
+      const sx = (Math.random() - 0.5) * this.screenShake;
+      const sy = (Math.random() - 0.5) * this.screenShake;
+      ctx.translate(sx, sy);
+      this.screenShake *= 0.94;
+    }
+
+    // Solid dark tactical HUD background
+    ctx.fillStyle = '#070B14';
+    ctx.fillRect(0, 0, w, h);
+
+    // Tactical Radar Crosshairs
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 0);
+    ctx.lineTo(w / 2, h);
+    ctx.moveTo(0, h / 2);
+    ctx.lineTo(w, h / 2);
+    ctx.stroke();
+
+    // 1. Kepler Swept Wedge (Analyze View)
+    if (this.currentShape === 'leo' && this.trailPoints.length > 2) {
+      const cx = w / 2;
+      const cy = h / 2;
+      const last = this.trailPoints[this.trailPoints.length - 1];
+      const prev = this.trailPoints[Math.max(0, this.trailPoints.length - 14)];
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 229, 255, 0.08)';
+      ctx.strokeStyle = 'rgba(0, 229, 255, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(prev.x, prev.y);
+      ctx.lineTo(last.x, last.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(0, 229, 255, 0.65)';
+      ctx.font = "8.5px 'JetBrains Mono', monospace";
+      ctx.textAlign = 'center';
+      ctx.fillText('KEPLER II: EQUAL AREA SWEEP', (cx + last.x) / 2, (cy + last.y) / 2 - 6);
+      ctx.restore();
+    }
+
+    // 2. Fading Satellite Trail
+    if (this.trailPoints.length > 1) {
+      ctx.save();
+      ctx.lineWidth = 2.0;
+      for (let p = 1; p < this.trailPoints.length; p++) {
+        const p1 = this.trailPoints[p - 1];
+        const p2 = this.trailPoints[p];
+        const alpha = Math.max(0, 1 - p2.age);
+        if (alpha <= 0) continue;
+        ctx.strokeStyle = `rgba(0, 229, 255, ${alpha * 0.75})`;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+      }
+      const head = this.trailPoints[this.trailPoints.length - 1];
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(head.x, head.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#00E5FF';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(head.x, head.y, 6 + Math.sin(this.simTime * 8) * 2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 3. Reset Bucket Lengths
+    for (let b = 0; b < 8; b++) {
+      this.bucketLengths[b] = 0;
+    }
+
+    // Populate Buckets
+    for (let i = 0; i < N; i++) {
+      const b = this.bucket[i];
+      const len = this.bucketLengths[b];
+      this.bucketLists[b][len] = i;
+      this.bucketLengths[b] = len + 1;
+    }
+
+    // 4. BATCHED DRAW PASS: 8 Stroke Calls for 10,000+ Dashes
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+
+    for (let b = 0; b < 8; b++) {
+      const count = this.bucketLengths[b];
+      if (count === 0) continue;
+
+      ctx.strokeStyle = this.bucketColors[b];
+      ctx.beginPath();
+
+      const list = this.bucketLists[b];
+      for (let j = 0; j < count; j++) {
+        const idx = list[j];
+        const px = this.x[idx];
+        const py = this.y[idx];
+        const halfL = this.dashLen[idx] * 0.5;
+        const dx = halfL * this.cosA[idx];
+        const dy = halfL * this.sinA[idx];
+
+        ctx.moveTo(px - dx, py - dy);
+        ctx.lineTo(px + dx, py + dy);
+      }
+      ctx.stroke();
+    }
+
+    // 5. Engine Plume & Debris Rendering
+    if (this.isLaunching) {
+      this.drawLaunchFX(ctx);
+    }
+
+    ctx.restore();
+  }
+
+  drawLaunchFX(ctx) {
+    // Engine Plume with thermal cooling gradient
+    for (let i = 0; i < this.plumeParticles.length; i++) {
+      const p = this.plumeParticles[i];
+      const prog = p.age / p.maxAge;
+      let col = '#FFFFFF';
+      if (prog > 0.7) col = 'rgba(71, 85, 105, 0.4)';
+      else if (prog > 0.45) col = 'rgba(220, 38, 38, 0.8)';
+      else if (prog > 0.2) col = 'rgba(249, 115, 22, 0.9)';
+      else col = 'rgba(253, 224, 71, 0.95)';
+
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Tumbling Stage Separation Debris
+    ctx.strokeStyle = '#CBD5E1';
+    ctx.lineWidth = 1.8;
+    for (let i = 0; i < this.debrisParticles.length; i++) {
+      const d = this.debrisParticles[i];
+      const cos = Math.cos(d.rot) * d.len * 0.5;
+      const sin = Math.sin(d.rot) * d.len * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(d.x - cos, d.y - sin);
+      ctx.lineTo(d.x + cos, d.y + sin);
+      ctx.stroke();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GLOBAL FX ENGINE (CROSS-PANEL PARTICLE STREAMS & 6S INTRO)
+// ═══════════════════════════════════════════════════════════════
+class FxEngine {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.streams = [];
+    this.alerts = [];
+    this.introActive = false;
+    this.introTimer = 0;
+    this.introParticles = [];
+    this.onIntroComplete = null;
+
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+  }
+
+  resize() {
+    this.canvas.width = window.innerWidth;
+    this.canvas.height = window.innerHeight;
+  }
+
+  streamCardToChassis(sourceEl, targetX, targetY) {
+    if (STATE.motionMode === 'off') return;
+    const rect = sourceEl.getBoundingClientRect();
+    const sx = rect.left + rect.width / 2;
+    const sy = rect.top + rect.height / 2;
+
+    const count = STATE.motionMode === 'reduced' ? 15 : 60;
+    for (let i = 0; i < count; i++) {
+      this.streams.push({
+        p0x: sx,
+        p0y: sy,
+        p1x: sx + (targetX - sx) * 0.3 + (Math.random() - 0.5) * 80,
+        p1y: sy - 120 + (Math.random() - 0.5) * 60,
+        p2x: sx + (targetX - sx) * 0.7 + (Math.random() - 0.5) * 80,
+        p2y: targetY - 60 + (Math.random() - 0.5) * 60,
+        p3x: targetX,
+        p3y: targetY,
+        t: -Math.random() * 0.25,
+        speed: 1.4 + Math.random() * 0.6,
+        color: Math.random() < 0.2 ? '#FFFFFF' : '#00E5FF',
+        size: 2.0 + Math.random() * 2.5
+      });
+    }
+  }
+
+  alertConstraintViolation(gaugeEl) {
+    if (STATE.motionMode === 'off') return;
+    const rect = gaugeEl.getBoundingClientRect();
+    const gx = rect.left + rect.width / 2;
+    const gy = rect.top + rect.height / 2;
+
+    gaugeEl.classList.add('spring-shake');
+    setTimeout(() => gaugeEl.classList.remove('spring-shake'), 460);
+
+    const count = STATE.motionMode === 'reduced' ? 20 : 70;
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const spd = 120 + Math.random() * 280;
+      this.alerts.push({
+        x: gx,
+        y: gy,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd,
+        age: 0,
+        maxAge: 0.5 + Math.random() * 0.4
+      });
+    }
+  }
+
+  playIntro(onComplete) {
+    this.introActive = true;
+    this.introTimer = 0;
+    this.onIntroComplete = onComplete;
+    this.introParticles = [];
+
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+
+    // 4,000 Cosmic Dash Particles for Intro Assembly
+    for (let i = 0; i < 4000; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const r = 80 + Math.random() * 600;
+      this.introParticles.push({
+        x: cx + Math.cos(angle) * r,
+        y: cy + Math.sin(angle) * r,
+        vx: 0,
+        vy: 0,
+        homeX: cx + (Math.random() - 0.5) * 360,
+        homeY: cy + (Math.random() - 0.5) * 120,
+        targetAngle: angle,
+        targetR: 160 + (Math.random() - 0.5) * 30
+      });
+    }
+  }
+
+  skipIntro() {
+    if (!this.introActive) return;
+    this.introActive = false;
+    if (this.onIntroComplete) this.onIntroComplete();
+  }
+
+  updateAndDraw(dt) {
+    const ctx = this.ctx;
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // 1. Draw Active Module Stream Particles
+    for (let i = this.streams.length - 1; i >= 0; i--) {
+      const s = this.streams[i];
+      s.t += s.speed * dt;
+      if (s.t >= 1.0) {
+        this.streams.splice(i, 1);
+        continue;
+      }
+      if (s.t < 0) continue;
+
+      const t = s.t;
+      const omt = 1 - t;
+      const x = omt*omt*omt*s.p0x + 3*omt*omt*t*s.p1x + 3*omt*t*t*s.p2x + t*t*t*s.p3x;
+      const y = omt*omt*omt*s.p0y + 3*omt*omt*t*s.p1y + 3*omt*t*t*s.p2y + t*t*t*s.p3y;
+
+      ctx.fillStyle = s.color;
+      ctx.beginPath();
+      ctx.arc(x, y, s.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 2. Draw Constraint Alerts (Red Alarm Sparks)
+    for (let i = this.alerts.length - 1; i >= 0; i--) {
+      const a = this.alerts[i];
+      a.age += dt;
+      if (a.age >= a.maxAge) {
+        this.alerts.splice(i, 1);
+        continue;
+      }
+      a.x += a.vx * dt;
+      a.y += a.vy * dt;
+      const alpha = 1 - a.age / a.maxAge;
+      ctx.fillStyle = `rgba(239, 68, 68, ${alpha})`;
+      ctx.fillRect(a.x - 2, a.y - 2, 4, 4);
+    }
+
+    // 3. Draw 6s Kinetic Intro Assembly
+    if (this.introActive) {
+      this.introTimer += dt;
+      const cx = w / 2;
+      const cy = h / 2;
+
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#00E5FF';
+      ctx.beginPath();
+
+      for (let i = 0; i < this.introParticles.length; i++) {
+        const p = this.introParticles[i];
+        if (this.introTimer < 3.0) {
+          // Flock into central AETHEL logo geometry
+          p.x += (p.homeX - p.x) * dt * 2.5;
+          p.y += (p.homeY - p.y) * dt * 2.5;
+        } else if (this.introTimer < 5.0) {
+          // Sweep into orbital trajectory ring
+          const tx = cx + Math.cos(p.targetAngle + this.introTimer * 1.5) * p.targetR;
+          const ty = cy + Math.sin(p.targetAngle + this.introTimer * 1.5) * p.targetR * 0.45;
+          p.x += (tx - p.x) * dt * 4.0;
+          p.y += (ty - p.y) * dt * 4.0;
+        } else {
+          // Bloom outward revealing app
+          p.x += (p.x - cx) * dt * 3.5;
+          p.y += (p.y - cy) * dt * 3.5;
+        }
+
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x + 4, p.y);
+      }
+      ctx.stroke();
+
+      if (this.introTimer > 6.0) {
+        this.skipIntro();
+      }
+    }
+  }
+}
+
+// ── GLOBAL ENGINE INSTANCES ──
+let particleEngine = null;
+let fxEngine = null;
+
+// ── TELEMETRY & STATE MUTATION ENGINE ──
 function getEquippedItems() {
   const list = [];
   for (const cat of Object.values(SUBSYSTEMS)) {
@@ -434,356 +1479,377 @@ function getEquippedItems() {
   return list;
 }
 
-// ── RENDER SUBSYSTEM OUTFITTER ──
-function renderSubsystems(categoryKey) {
-  const cat = SUBSYSTEMS[categoryKey];
-  if (!cat) return;
-
-  const frag = document.createDocumentFragment();
-
-  cat.items.forEach(item => {
-    const card = document.createElement('div');
-    const isEquipped = STATE.equipped.has(item.id);
-    card.className = 'component-card' + (isEquipped ? ' equipped' : '');
-    card.dataset.id = item.id;
-
-    const pwrSign = item.power >= 0 ? '+' : '';
-    const dataSign = item.data > 0 ? '+' : '';
-
-    card.innerHTML = `
-      <div class="comp-header">
-        <span class="comp-name">${item.name}</span>
-        <span class="comp-tag ${isEquipped ? 'equipped' : 'stowed'}">[${isEquipped ? 'EQUIPPED' : 'STOWED'}]</span>
-      </div>
-      <div class="comp-desc">${item.desc}</div>
-      <div class="comp-badges">
-        <span class="comp-badge">MASS: <strong>+${item.mass} KG</strong></span>
-        <span class="comp-badge ${item.power >= 0 ? 'pos' : 'neg'}">PWR: <strong>${pwrSign}${item.power}W</strong></span>
-        <span class="comp-badge neg">COST: <strong>-${formatCurrency(item.cost)}</strong></span>
-        ${item.data !== 0 ? `<span class="comp-badge ${item.data > 0 ? 'pos' : 'neg'}">DATA: <strong>${dataSign}${item.data} Mbps</strong></span>` : ''}
-      </div>
-    `;
-
-    card.addEventListener('click', () => toggleComponent(item.id));
-    frag.appendChild(card);
-  });
-
-  DOM.outfitter.textContent = '';
-  DOM.outfitter.appendChild(frag);
-}
-
-// ── TOGGLE COMPONENT STATE ──
-function toggleComponent(itemId) {
-  if (STATE.equipped.has(itemId)) {
-    STATE.equipped.delete(itemId);
-    sfxUnequip();
-  } else {
-    STATE.equipped.add(itemId);
-    sfxEquip();
-  }
-  renderSubsystems(STATE.activeTab);
-  updateTelemetry();
-  updateChassisSvgHighlights();
-}
-
-// ── UPDATE TELEMETRY (All metrics strictly derived from real state) ──
-function updateTelemetry() {
-  const vehicle = VEHICLES[STATE.vehicle];
-  const mission = MISSIONS[STATE.mission];
-  const items = getEquippedItems();
+function computeMetrics() {
+  const vehicle = VEHICLES[STATE.vehicle] || VEHICLES.falcon9;
+  const mission = MISSIONS[STATE.mission] || MISSIONS.leo;
+  const equipped = getEquippedItems();
 
   let totalMass = 0;
-  let totalPowerGen = 0;
-  let totalPowerLoad = 0;
-  let totalSubsystemCost = 0;
-  let totalDataPayload = 0;
+  let totalPower = 0;
+  let totalCost = vehicle.cost;
+  let totalData = 0;
 
-  items.forEach(item => {
+  for (const item of equipped) {
     totalMass += item.mass;
-    if (item.power >= 0) {
-      totalPowerGen += item.power;
-    } else {
-      totalPowerLoad += Math.abs(item.power);
-    }
-    totalSubsystemCost += item.cost;
-    totalDataPayload += item.data;
-  });
-
-  const netPower = totalPowerGen - totalPowerLoad;
-  const totalCost = vehicle.cost + totalSubsystemCost;
-  const projectBudgetCap = 250.0;
-  const budgetReserve = projectBudgetCap - totalCost;
-
-  // 1. Mass Telemetry
-  const massRatio = (totalMass / vehicle.mass) * 100;
-  const structuralMargin = Math.max(0, 100 - massRatio);
-  DOM.massVal.textContent = totalMass.toLocaleString();
-  DOM.massPct.textContent = massRatio.toFixed(1) + '%';
-  DOM.massMaxText.textContent = 'MAX: ' + vehicle.mass.toLocaleString() + ' KG';
-  DOM.massMargin.textContent = structuralMargin.toFixed(1) + '%';
-  DOM.massFill.style.width = Math.min(massRatio, 100) + '%';
-
-  DOM.gaugeMass.className = 'metric-card';
-  if (massRatio > 100) {
-    DOM.gaugeMass.classList.add('alert');
-    DOM.massStatus.className = 'metric-chip alert';
-    DOM.massStatus.textContent = '[OVERCAPACITY]';
-  } else if (massRatio > 85) {
-    DOM.gaugeMass.classList.add('warn');
-    DOM.massStatus.className = 'metric-chip warn';
-    DOM.massStatus.textContent = '[MARGIN CRITICAL]';
-  } else {
-    DOM.massStatus.className = 'metric-chip nominal';
-    DOM.massStatus.textContent = '[NOMINAL]';
+    totalPower += item.power;
+    totalCost += item.cost;
+    totalData += item.data;
   }
 
-  // 2. Power Telemetry
-  const powerSign = netPower >= 0 ? '+' : '';
-  DOM.powerVal.textContent = powerSign + netPower;
-  DOM.powerPct.textContent = powerSign + netPower + ' W';
-  DOM.powerSubText.textContent = 'GEN: ' + totalPowerGen + 'W | LOAD: ' + totalPowerLoad + 'W';
-  const batteryBufferWh = Math.max(0, (totalPowerGen * 0.22)).toFixed(1);
-  DOM.battBuffer.textContent = batteryBufferWh + ' Wh';
+  const budgetCap = 250;
+  const massValid = totalMass <= vehicle.mass;
+  const powerValid = totalPower >= 0;
+  const budgetValid = totalCost <= budgetCap;
+  const dataValid = totalData >= mission.targetData;
+  const isNominal = massValid && powerValid && budgetValid && dataValid;
 
-  const powerBarWidth = totalPowerGen > 0
-    ? (totalPowerGen / (totalPowerGen + totalPowerLoad)) * 100
-    : 0;
-  DOM.powerFill.style.width = Math.min(100, Math.max(5, powerBarWidth)) + '%';
+  STATE.metrics = {
+    mass: totalMass,
+    power: totalPower,
+    cost: totalCost,
+    data: totalData
+  };
 
-  DOM.gaugePower.className = 'metric-card';
-  if (netPower < 0) {
-    DOM.gaugePower.classList.add('alert');
-    DOM.powerStatus.className = 'metric-chip alert';
-    DOM.powerStatus.textContent = '[DEFICIT]';
-  } else if (netPower > 0) {
-    DOM.powerStatus.className = 'metric-chip surplus';
-    DOM.powerStatus.textContent = '[SURPLUS]';
-  } else {
-    DOM.powerStatus.className = 'metric-chip nominal';
-    DOM.powerStatus.textContent = '[BALANCED]';
-  }
-
-  // 3. Project Budget Telemetry
-  const budgetRatio = (totalCost / projectBudgetCap) * 100;
-  DOM.budgetVal.textContent = formatCurrency(totalCost);
-  DOM.budgetPct.textContent = budgetRatio.toFixed(1) + '%';
-  DOM.budgetSubText.textContent = 'CAP: ' + formatCurrency(projectBudgetCap);
-  DOM.budgetReserve.textContent = formatCurrency(Math.max(0, budgetReserve));
-  DOM.budgetFill.style.width = Math.min(budgetRatio, 100) + '%';
-
-  DOM.gaugeBudget.className = 'metric-card';
-  if (totalCost > projectBudgetCap) {
-    DOM.gaugeBudget.classList.add('alert');
-    DOM.budgetStatus.className = 'metric-chip alert';
-    DOM.budgetStatus.textContent = '[EXCEEDED]';
-  } else if (budgetRatio > 90) {
-    DOM.gaugeBudget.classList.add('warn');
-    DOM.budgetStatus.className = 'metric-chip warn';
-    DOM.budgetStatus.textContent = '[RESERVE LOW]';
-  } else {
-    DOM.budgetStatus.className = 'metric-chip nominal';
-    DOM.budgetStatus.textContent = '[FUNDED]';
-  }
-
-  // 4. Data Telemetry
-  const netThroughput = Math.max(0, totalDataPayload);
-  DOM.dataVal.textContent = netThroughput.toFixed(1);
-  DOM.dataTargetText.textContent = 'TGT: ' + mission.targetData + 'M';
-  DOM.dataSubText.textContent = 'PAYLOAD: ' + Math.max(0, Math.abs(totalDataPayload)).toFixed(1) + ' Mbps';
-  const dataRatio = (netThroughput / (mission.targetData * 3)) * 100;
-  DOM.dataFill.style.width = Math.min(Math.max(dataRatio, 5), 100) + '%';
-
-  const dsnLinkMarginDb = (+23.4 + (netThroughput > mission.targetData ? 2.5 : -5.0)).toFixed(1);
-  DOM.dataMargin.textContent = (dsnLinkMarginDb > 0 ? '+' : '') + dsnLinkMarginDb + ' dB';
-
-  DOM.gaugeData.className = 'metric-card';
-  if (netThroughput < mission.targetData && items.length > 0) {
-    DOM.gaugeData.classList.add('warn');
-    DOM.dataStatus.className = 'metric-chip warn';
-    DOM.dataStatus.textContent = '[BANDWIDTH LOW]';
-  } else {
-    DOM.dataStatus.className = 'metric-chip nominal';
-    DOM.dataStatus.textContent = '[NOMINAL LINK]';
-  }
-
-  // Counts & Status Bar
-  DOM.equippedCount.textContent = items.length + ' SUBSYSTEMS';
-  DOM.footerModulesCount.textContent = items.length + ' MODULES EQUIPPED';
-  DOM.sideDownlink.textContent = (84.2 + (netThroughput > 0 ? 0.0 : -40.0)).toFixed(1) + ' MB/S';
-
-  // Mission Headers Update
-  DOM.hudOrbit.textContent = 'AP: ' + mission.apoapsis + ' // PE: ' + mission.periapsis + ' | INC: ' + mission.inc;
-  DOM.missionIdBadge.textContent = mission.code;
-  DOM.trajectoryReq.textContent = mission.reqText;
-  DOM.vehicleCapLabel.textContent = 'CAP: ' + vehicle.mass.toLocaleString() + ' KG // BASE: ' + formatCurrency(vehicle.cost);
-
-  DOM.overTarget.textContent = mission.name.toUpperCase();
-  DOM.overPeri.textContent = mission.periapsis;
-  DOM.overVel.textContent = mission.targetVel;
-
-  DOM.hudMainTitle.textContent = mission.name.toUpperCase() + ' ORBITAL INSERTION HUD';
-  DOM.hudMetaText = `CONIC: ORBIT-04 | TOF: ${mission.periodMin} min | dV_REQ: ${mission.dvReq} m/s`;
-  DOM.trajDv.textContent = mission.dvReq;
-  DOM.trajPeriod.textContent = mission.periodMin > 1440
-    ? (mission.periodMin / 1440).toFixed(0) + ' days'
-    : mission.periodMin.toFixed(1);
-  DOM.trajTargetLabel.textContent = mission.vector;
-
-  // Thrust-to-weight ratio
-  const twrVal = totalMass > 0 ? (445 / (totalMass * 9.81)).toFixed(2) : '0.00';
-  DOM.trajTwr.textContent = twrVal;
-
-  // Launch Sequencer Readiness Evaluation
-  const massValid = totalMass > 0 && totalMass <= vehicle.mass;
-  const powerValid = netPower >= 0;
-  const modulesPresent = items.length > 0;
-  const budgetValid = totalCost <= projectBudgetCap;
-
-  STATE.launchReady = massValid && powerValid && modulesPresent && budgetValid;
-
-  DOM.btnLaunch.disabled = !STATE.launchReady;
-  DOM.btnLaunch.className = 'btn-launch';
-
-  if (STATE.launchReady) {
-    DOM.btnLaunch.classList.add('go');
-    DOM.launchSubStatus.textContent = 'ALL SYSTEMS GO — PRESS SPACE TO LAUNCH';
-  } else {
-    DOM.btnLaunch.classList.add('no-go');
-    if (totalMass > vehicle.mass) {
-      DOM.launchSubStatus.textContent = 'PAYLOAD EXCEEDS VEHICLE MASS CAP';
-    } else if (netPower < 0) {
-      DOM.launchSubStatus.textContent = 'POWER DEFICIT PREVENTS LAUNCH';
-    } else if (totalCost > projectBudgetCap) {
-      DOM.launchSubStatus.textContent = 'PROJECT EXCEEDS APPROVED BUDGET';
-    } else {
-      DOM.launchSubStatus.textContent = 'SELECT COMPATIBLE SUBSYSTEMS';
-    }
-  }
-
-  // Chief Avionics Educational Advisor Feedback
-  runAdvisorDiagnostics(items, totalMass, netPower, netThroughput, vehicle, mission);
+  return {
+    mass: totalMass,
+    maxMass: vehicle.mass,
+    massValid,
+    massPct: Math.min(100, (totalMass / vehicle.mass) * 100),
+    power: totalPower,
+    powerValid,
+    cost: totalCost,
+    budgetCap,
+    budgetValid,
+    budgetPct: Math.min(100, (totalCost / budgetCap) * 100),
+    data: totalData,
+    targetData: mission.targetData,
+    dataValid,
+    isNominal,
+    vehicle,
+    mission,
+    equippedCount: equipped.length
+  };
 }
 
-// ── CHIEF AVIONICS ADVISOR LOGIC (Autonomous Educational Engine) ──
-function runAdvisorDiagnostics(items, totalMass, netPower, netThroughput, vehicle, mission) {
-  DOM.advisorLog.textContent = '';
-  const frag = document.createDocumentFragment();
+function updateTelemetry() {
+  const m = computeMetrics();
 
-  function pushLog(msg, type) {
+  // Top Selector Status Labels
+  if (DOM.trajectoryReq) DOM.trajectoryReq.textContent = m.mission.reqText;
+  if (DOM.vehicleCapLabel) {
+    DOM.vehicleCapLabel.textContent = `CAP: ${m.vehicle.mass.toLocaleString()} KG // BASE: $${m.vehicle.cost}M`;
+  }
+  if (DOM.missionIdBadge) DOM.missionIdBadge.textContent = m.mission.code;
+
+  // Mass Metric Card
+  if (DOM.massVal) DOM.massVal.textContent = m.mass.toLocaleString();
+  if (DOM.massPct) DOM.massPct.textContent = `${m.massPct.toFixed(1)}%`;
+  if (DOM.massMaxText) DOM.massMaxText.textContent = `MAX: ${m.maxMass.toLocaleString()} KG`;
+  if (DOM.massMargin) DOM.massMargin.textContent = `${(100 - m.massPct).toFixed(1)}%`;
+
+  GAUGE_SPRINGS.mass.set(m.massPct);
+  if (DOM.massStatus) {
+    if (m.massValid) {
+      DOM.massStatus.className = 'metric-chip nominal';
+      DOM.massStatus.textContent = '[NOMINAL]';
+      DOM.gaugeMass.classList.remove('alert');
+    } else {
+      DOM.massStatus.className = 'metric-chip alert';
+      DOM.massStatus.textContent = '[OVERWEIGHT]';
+      DOM.gaugeMass.classList.add('alert');
+    }
+  }
+
+  // Power Metric Card
+  if (DOM.powerVal) {
+    DOM.powerVal.textContent = (m.power >= 0 ? '+' : '') + m.power;
+  }
+  if (DOM.powerPct) {
+    DOM.powerPct.textContent = (m.power >= 0 ? '+' : '') + m.power + ' W';
+  }
+  GAUGE_SPRINGS.power.set(m.power >= 0 ? 50 + Math.min(50, m.power / 10) : Math.max(0, 50 + m.power / 10));
+  if (DOM.powerStatus) {
+    if (m.power > 0) {
+      DOM.powerStatus.className = 'metric-chip surplus';
+      DOM.powerStatus.textContent = '[SURPLUS]';
+      DOM.gaugePower.classList.remove('alert');
+    } else if (m.power === 0) {
+      DOM.powerStatus.className = 'metric-chip nominal';
+      DOM.powerStatus.textContent = '[BALANCED]';
+      DOM.gaugePower.classList.remove('alert');
+    } else {
+      DOM.powerStatus.className = 'metric-chip alert';
+      DOM.powerStatus.textContent = '[DEFICIT]';
+      DOM.gaugePower.classList.add('alert');
+    }
+  }
+
+  // Budget Metric Card
+  if (DOM.budgetVal) DOM.budgetVal.textContent = formatCurrency(m.cost);
+  if (DOM.budgetPct) DOM.budgetPct.textContent = `${m.budgetPct.toFixed(1)}%`;
+  if (DOM.budgetReserve) DOM.budgetReserve.textContent = formatCurrency(Math.max(0, m.budgetCap - m.cost));
+
+  GAUGE_SPRINGS.budget.set(m.budgetPct);
+  if (DOM.budgetStatus) {
+    if (m.budgetValid) {
+      DOM.budgetStatus.className = 'metric-chip nominal';
+      DOM.budgetStatus.textContent = '[FUNDED]';
+      DOM.gaugeBudget.classList.remove('alert');
+    } else {
+      DOM.budgetStatus.className = 'metric-chip alert';
+      DOM.budgetStatus.textContent = '[DEFICIT]';
+      DOM.gaugeBudget.classList.add('alert');
+    }
+  }
+
+  // Data Throughput Card
+  if (DOM.dataVal) DOM.dataVal.textContent = m.data.toFixed(1);
+  if (DOM.dataTargetText) DOM.dataTargetText.textContent = `TGT: ${m.targetData}M`;
+
+  const dataFillPct = Math.min(100, (m.data / m.targetData) * 100);
+  GAUGE_SPRINGS.data.set(dataFillPct);
+  if (DOM.dataStatus) {
+    if (m.dataValid) {
+      DOM.dataStatus.className = 'metric-chip nominal';
+      DOM.dataStatus.textContent = '[NOMINAL LINK]';
+      DOM.gaugeData.classList.remove('alert');
+    } else {
+      DOM.dataStatus.className = 'metric-chip alert';
+      DOM.dataStatus.textContent = '[LINK MARGIN LOW]';
+      DOM.gaugeData.classList.add('alert');
+    }
+  }
+
+  // HUD Main Titles
+  if (DOM.hudMainTitle) DOM.hudMainTitle.textContent = `${m.mission.name.toUpperCase()} ORBITAL INSERTION HUD`;
+  if (DOM.hudMetaText) {
+    DOM.hudMetaText.textContent = `CONIC: ${m.mission.code} | TOF: ${m.mission.periodMin} min | dV_REQ: ${m.mission.dvReq} m/s`;
+  }
+  if (DOM.overTarget) DOM.overTarget.textContent = m.mission.name.toUpperCase();
+  if (DOM.overPeri) DOM.overPeri.textContent = m.mission.periapsis;
+  if (DOM.overVel) DOM.overVel.textContent = m.mission.targetVel;
+
+  if (DOM.trajDv) DOM.trajDv.textContent = `${m.mission.dvReq} m/s`;
+  if (DOM.trajTwr) DOM.trajTwr.textContent = (1.4 + Math.random() * 0.1).toFixed(2);
+  if (DOM.trajPeriod) DOM.trajPeriod.textContent = `${m.mission.periodMin} min`;
+  if (DOM.trajTargetLabel) DOM.trajTargetLabel.textContent = m.mission.vector;
+
+  // Outfitter Counts
+  if (DOM.equippedCount) DOM.equippedCount.textContent = `${m.equippedCount} EQUIPPED`;
+  if (DOM.footerModulesCount) DOM.footerModulesCount.textContent = `${m.equippedCount} MODULES EQUIPPED`;
+
+  // Master Launch Sequencer Readiness
+  STATE.launchReady = m.isNominal;
+  if (DOM.btnLaunch) {
+    DOM.btnLaunch.disabled = !m.isNominal;
+    if (m.isNominal) {
+      DOM.btnLaunch.classList.add('nominal');
+      if (DOM.launchSubStatus) DOM.launchSubStatus.textContent = 'ALL SYSTEMS GO // CLICK TO LAUNCH';
+    } else {
+      DOM.btnLaunch.classList.remove('nominal');
+      if (DOM.launchSubStatus) {
+        if (!m.massValid) DOM.launchSubStatus.textContent = 'ABORT: PAYLOAD MASS EXCEEDED';
+        else if (!m.powerValid) DOM.launchSubStatus.textContent = 'ABORT: CRITICAL POWER DEFICIT';
+        else if (!m.budgetValid) DOM.launchSubStatus.textContent = 'ABORT: PROJECT BUDGET BREACH';
+        else DOM.launchSubStatus.textContent = 'ABORT: DSN DATA LINK MARGIN DEFICIT';
+      }
+    }
+  }
+
+  // Synchronize Particle Field with Active View and State
+  if (particleEngine) {
+    if (STATE.activeView === 'vehicle') {
+      particleEngine.buildShape('vehicle');
+    } else {
+      particleEngine.buildShape(STATE.mission);
+    }
+  }
+
+  runAutonomousAdvisor(m);
+}
+
+// ── CHIEF AUTONOMOUS AVIONICS ADVISOR CONSOLE ──
+function runAutonomousAdvisor(m) {
+  if (!DOM.advisorLog) return;
+  DOM.advisorLog.innerHTML = '';
+
+  const messages = [];
+
+  // Directive 1: Mass Check
+  if (m.massValid) {
+    messages.push({
+      type: 'nominal',
+      text: `> ✓ MASS MARGIN NOMINAL: ${m.mass} kg within ${m.vehicle.name} limit (${m.maxMass.toLocaleString()} kg). Structural margin: ${(100 - m.massPct).toFixed(1)}%.`
+    });
+  } else {
+    messages.push({
+      type: 'critical',
+      text: `> ⚠ MASS BREACH: ${m.mass} kg exceeds ${m.vehicle.name} limit by ${(m.mass - m.maxMass).toLocaleString()} kg. Switch to Heavy launcher or jettison modules.`
+    });
+  }
+
+  // Directive 2: Power Check
+  if (m.power > 0) {
+    messages.push({
+      type: 'nominal',
+      text: `> ✓ POWER POSITIVE: Net surplus of +${m.power} W. Battery trickle charge active. Eclipse survival window open.`
+    });
+  } else if (m.power === 0) {
+    messages.push({
+      type: 'warning',
+      text: `> ⚡ POWER BALANCED: Net margin is 0 W. Zero reserve buffer for attitude maneuvers or telemetry bursts.`
+    });
+  } else {
+    messages.push({
+      type: 'critical',
+      text: `> ⚡ POWER DEFICIT: Bus draw exceeds generation by ${Math.abs(m.power)} W. Spacecraft will suffer brownout within 1 orbit.`
+    });
+  }
+
+  // Directive 3: Budget Check
+  if (m.budgetValid) {
+    messages.push({
+      type: 'nominal',
+      text: `> ✓ BUDGET APPROVED: Project cost ${formatCurrency(m.cost)} within ${formatCurrency(m.budgetCap)} NASA cap. Reserve: ${formatCurrency(m.budgetCap - m.cost)}.`
+    });
+  } else {
+    messages.push({
+      type: 'critical',
+      text: `> ⚠ FISCAL BREACH: Mission cost exceeds authorized NASA spending cap by ${formatCurrency(m.cost - m.budgetCap)}.`
+    });
+  }
+
+  // Directive 4: Data Check
+  if (m.dataValid) {
+    messages.push({
+      type: 'nominal',
+      text: `> ✓ DSN DATA LINK: Throughput ${m.data.toFixed(1)} Mbps satisfies ${m.mission.name} science requirements (≥ ${m.targetData} Mbps).`
+    });
+  } else {
+    messages.push({
+      type: 'warning',
+      text: `> 📡 DATA DEFICIT: Throughput ${m.data.toFixed(1)} Mbps is below required ${m.targetData} Mbps downlink threshold.`
+    });
+  }
+
+  // Master Readiness Assessment
+  if (m.isNominal) {
+    messages.push({
+      type: 'nominal',
+      text: `> ◈ FLIGHT READINESS REVIEW: ALL SYSTEMS NOMINAL. Ready for Stage-0 terminal countdown.`
+    });
+  } else {
+    messages.push({
+      type: 'critical',
+      text: `> ✖ LAUNCH INHIBIT ACTIVE: Resolve critical flight safety violations above prior to ignition.`
+    });
+  }
+
+  // Inject into Advisor Console
+  const frag = document.createDocumentFragment();
+  for (const item of messages) {
     const row = document.createElement('div');
-    row.className = 'adv-msg ' + (type || 'system');
-    row.textContent = msg;
+    row.className = `adv-msg ${item.type}`;
+    row.textContent = item.text;
     frag.appendChild(row);
   }
-
-  if (items.length === 0) {
-    pushLog('> DIAGNOSTIC: Zero subsystems equipped. Avionics bus idling.', 'system');
-    DOM.advisorLog.appendChild(frag);
-    return;
-  }
-
-  pushLog(`> MISSION PROFILE: ${mission.name} | VEHICLE: ${vehicle.name}`, 'system');
-
-  // Structural & Mass Check
-  if (totalMass > vehicle.mass) {
-    const delta = totalMass - vehicle.mass;
-    pushLog(`> CRITICAL: Payload mass (${totalMass.toLocaleString()} kg) exceeds ${vehicle.name} limit by ${delta.toLocaleString()} kg. De-orbit trajectory impossible.`, 'critical');
-  } else {
-    const margin = ((1 - totalMass / vehicle.mass) * 100).toFixed(1);
-    pushLog(`> NOMINAL: Structural mass envelope verified. Launch vehicle payload margin: ${margin}%.`, 'nominal');
-  }
-
-  // Power Balance Check
-  if (netPower < 0) {
-    pushLog('> WARNING: Power deficit detected. Deep space missions cannot rely on battery reserves. Equip RTGs or expand Solar Arrays.', 'warn');
-  } else if (netPower === 0) {
-    pushLog('> ADVISORY: Net power zero margin. No reserve available for transmitter bursts or safe mode survival.', 'advisory');
-  } else {
-    pushLog(`> NOMINAL: Power surplus +${netPower}W. Steady-state generation covers peak instrument draw.`, 'nominal');
-  }
-
-  // Downlink Check
-  if (netThroughput < mission.targetData) {
-    pushLog('> ADVISORY: Downlink bandwidth insufficient for high-res telemetry. Upgrade to Ka-Band High-Gain Antenna.', 'advisory');
-  }
-
-  // Contextual Engineering Rules
-  const hasRtg = STATE.equipped.has('rtg-plutonium');
-  const hasSolar = STATE.equipped.has('solar-ultraflex');
-  const hasBattery = STATE.equipped.has('battery-liion');
-  const hasIon = STATE.equipped.has('thruster-ion');
-
-  if (mission.type === 'leo' && hasRtg) {
-    pushLog('> WARNING: RTGs add unnecessary mass and radioactive risk in LEO where solar irradiance is nominal.', 'warn');
-  }
-
-  if (mission.type === 'mars' && hasSolar && !hasRtg) {
-    pushLog('> ADVISORY: Eclipse corridor modeled. Battery buffer insufficient for 35m Umbra transit. RTG recommended for continuous thermal decay conversion.', 'advisory');
-  }
-
-  if (hasIon && netPower < 280) {
-    pushLog('> WARNING: NEXT-C ion thruster requires high voltage bus. Current power generation limits continuous duty cycle.', 'warn');
-  }
-
-  // Verification
-  if (STATE.launchReady) {
-    pushLog('> ✓ FLIGHT DIRECTIVE: All primary systems nominal. Stage-0 launch sequencer armed.', 'nominal');
-  }
-
   DOM.advisorLog.appendChild(frag);
   DOM.advisorLog.scrollTop = DOM.advisorLog.scrollHeight;
 }
 
-// ── SVG CHASSIS HIGHLIGHTS ──
+// ── RENDER SUBSYSTEM OUTFITTER PANEL ──
+function renderSubsystems(category) {
+  if (!DOM.outfitter) return;
+  DOM.outfitter.innerHTML = '';
+
+  const catData = SUBSYSTEMS[category];
+  if (!catData) return;
+
+  const frag = document.createDocumentFragment();
+
+  for (const item of catData.items) {
+    const isEquipped = STATE.equipped.has(item.id);
+
+    const card = document.createElement('div');
+    card.className = `module-card ${isEquipped ? 'equipped' : ''}`;
+    card.dataset.id = item.id;
+
+    card.innerHTML = `
+      <div class="module-header">
+        <div class="module-title">${item.name}</div>
+        <div class="module-badge ${isEquipped ? 'badge-equipped' : 'badge-stowed'}">
+          ${isEquipped ? '[EQUIPPED]' : '[STOWED]'}
+        </div>
+      </div>
+      <div class="module-desc">${item.desc}</div>
+      <div class="module-stats">
+        <span class="stat-pill">+${item.mass} KG</span>
+        <span class="stat-pill">${item.power >= 0 ? '+' : ''}${item.power}W GEN</span>
+        <span class="stat-pill">${formatCurrency(item.cost)}</span>
+        ${item.data !== 0 ? `<span class="stat-pill">${item.data > 0 ? '+' : ''}${item.data} Mbps</span>` : ''}
+      </div>
+    `;
+
+    card.addEventListener('click', () => {
+      toggleComponent(item.id, card);
+    });
+
+    frag.appendChild(card);
+  }
+
+  DOM.outfitter.appendChild(frag);
+}
+
+// ── COMPONENT TOGGLE WITH PHYSICAL PARTICLE STREAMS ──
+function toggleComponent(itemId, cardEl) {
+  const willEquip = !STATE.equipped.has(itemId);
+
+  if (willEquip) {
+    STATE.equipped.add(itemId);
+    sfxEquip();
+
+    // Stream particles from outfitter card across the screen to HUD
+    if (fxEngine && DOM.orbitCanvas) {
+      const hudRect = DOM.orbitCanvas.getBoundingClientRect();
+      fxEngine.streamCardToChassis(cardEl, hudRect.left + hudRect.width / 2, hudRect.top + hudRect.height / 2);
+    }
+  } else {
+    STATE.equipped.delete(itemId);
+    sfxUnequip();
+  }
+
+  // Recalculate metrics
+  updateTelemetry();
+  renderSubsystems(STATE.activeTab);
+  updateChassisSvgHighlights();
+
+  // If a violation occurred, send red alarm particles to offending vital
+  const m = computeMetrics();
+  if (fxEngine) {
+    if (!m.massValid && DOM.gaugeMass) fxEngine.alertConstraintViolation(DOM.gaugeMass);
+    if (!m.powerValid && DOM.gaugePower) fxEngine.alertConstraintViolation(DOM.gaugePower);
+    if (!m.budgetValid && DOM.gaugeBudget) fxEngine.alertConstraintViolation(DOM.gaugeBudget);
+  }
+}
+
+// ── SVG CHASSIS SCHEMATIC ACTIVE MODULE HIGHLIGHTS ──
 function updateChassisSvgHighlights() {
   const solarL = document.getElementById('svg-solar-l');
   const solarR = document.getElementById('svg-solar-r');
   const antenna = document.getElementById('svg-antenna');
   const thruster = document.getElementById('svg-thruster');
-  const instruments = document.getElementById('svg-instruments');
-  const leadersGroup = document.getElementById('svg-leaders');
 
   const hasSolar = STATE.equipped.has('solar-ultraflex');
   const hasAntenna = STATE.equipped.has('antenna-kaband') || STATE.equipped.has('antenna-xband');
-  const hasThruster = STATE.equipped.has('thruster-coldgas') || STATE.equipped.has('thruster-biprop') || STATE.equipped.has('thruster-ion');
-  const hasInst = STATE.equipped.has('imager-hires') || STATE.equipped.has('spectrometer-mass') || STATE.equipped.has('radar-sar');
+  const hasThruster = STATE.equipped.has('thruster-coldgas') || STATE.equipped.has('thruster-ion') || STATE.equipped.has('thruster-monoprop');
 
-  if (solarL) solarL.classList.toggle('active', hasSolar);
-  if (solarR) solarR.classList.toggle('active', hasSolar);
-  if (antenna) antenna.classList.toggle('active', hasAntenna);
-  if (thruster) thruster.classList.toggle('active', hasThruster);
-  if (instruments) instruments.classList.toggle('active', hasInst);
-
-  if (leadersGroup) {
-    leadersGroup.textContent = '';
-    const frag = document.createDocumentFragment();
-
-    const tags = [
-      { show: hasSolar, text: 'ULTRAFLEX WINGS', x: 60, y: 110 },
-      { show: hasAntenna, text: 'KA-BAND REFLECTOR', x: 270, y: 65 },
-      { show: hasInst, text: 'OPTICAL SENSOR BAY', x: 380, y: 140 },
-      { show: hasThruster, text: 'RCS ATTITUDE CLUSTER', x: 310, y: 220 }
-    ];
-
-    tags.forEach(t => {
-      if (t.show) {
-        const textNode = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        textNode.setAttribute('x', t.x);
-        textNode.setAttribute('y', t.y);
-        textNode.setAttribute('fill', '#00F0FF');
-        textNode.setAttribute('font-size', '9');
-        textNode.setAttribute('font-family', "'JetBrains Mono', monospace");
-        textNode.setAttribute('text-anchor', 'middle');
-        textNode.textContent = t.text;
-        frag.appendChild(textNode);
-      }
-    });
-
-    leadersGroup.appendChild(frag);
-  }
+  if (solarL) solarL.style.opacity = hasSolar ? '1' : '0.2';
+  if (solarR) solarR.style.opacity = hasSolar ? '1' : '0.2';
+  if (antenna) antenna.style.opacity = hasAntenna ? '1' : '0.2';
+  if (thruster) thruster.style.opacity = hasThruster ? '1' : '0.2';
 }
 
-// ── 8-BALL NAVBALL ATTITUDE INDICATOR (Canvas) ──
+// ── 8-BALL NAVBALL ATTITUDE INDICATOR ──
 function drawNavball() {
   const canvas = DOM.navballCanvas;
   if (!canvas) return;
@@ -794,33 +1860,29 @@ function drawNavball() {
 
   ctx.clearRect(0, 0, w, h);
 
-  // Time-based pitch and roll simulation
-  const time = Date.now() * 0.001;
-  const pitchAngle = Math.sin(time * 0.8) * 12 + 12.4; // +12.4 deg average
-  const rollAngle = Math.cos(time * 0.5) * 4;
+  const time = performance.now() * 0.001;
+  const pitchAngle = Math.sin(time * 0.6) * 12.4;
+  const rollAngle = Math.cos(time * 0.4) * 4.0;
 
   ctx.save();
-  // Clip to circle
   ctx.beginPath();
   ctx.arc(r, r, r - 2, 0, Math.PI * 2);
   ctx.clip();
 
-  // Rotate for roll
   ctx.translate(r, r);
   ctx.rotate((rollAngle * Math.PI) / 180);
 
-  // Shift for pitch
   const pitchOffset = (pitchAngle / 90) * (r * 0.7);
 
-  // Sky hemisphere (top, cyan-blue)
+  // Blue Sky Hemisphere
   ctx.fillStyle = '#0284C7';
   ctx.fillRect(-r * 2, -r * 2 + pitchOffset, r * 4, r * 2);
 
-  // Ground hemisphere (bottom, dark navy-slate)
+  // Dark Ground Hemisphere
   ctx.fillStyle = '#0F172A';
   ctx.fillRect(-r * 2, pitchOffset, r * 4, r * 2);
 
-  // Artificial horizon line
+  // Artificial Horizon
   ctx.strokeStyle = '#FFFFFF';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
@@ -828,8 +1890,8 @@ function drawNavball() {
   ctx.lineTo(r, pitchOffset);
   ctx.stroke();
 
-  // Pitch ladder markings
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+  // Pitch Ladder Lines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
   ctx.lineWidth = 1;
   [-20, -10, 10, 20].forEach(deg => {
     const y = pitchOffset - (deg / 90) * (r * 0.7);
@@ -841,8 +1903,8 @@ function drawNavball() {
 
   ctx.restore();
 
-  // Outer sphere border
-  ctx.strokeStyle = '#00F0FF';
+  // Outer Sphere Rim
+  ctx.strokeStyle = '#00E5FF';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.arc(r, r, r - 1.5, 0, Math.PI * 2);
@@ -853,114 +1915,8 @@ function drawNavball() {
   }
 }
 
-// ── ORBIT TRAJECTORY HUD CANVAS ANIMATION ──
-function drawOrbitHud() {
-  const canvas = DOM.orbitCanvas;
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width;
-  const h = canvas.height;
-  const cx = w / 2;
-  const cy = h / 2;
-
-  ctx.clearRect(0, 0, w, h);
-
-  // Tactical Radar Grid Lines
-  ctx.strokeStyle = 'rgba(0, 240, 255, 0.08)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(cx, 0);
-  ctx.lineTo(cx, h);
-  ctx.moveTo(0, cy);
-  ctx.lineTo(w, cy);
-  ctx.stroke();
-
-  // Concentric Radar Orbit Rings
-  const radii = [45, 90, 130];
-  radii.forEach((r, idx) => {
-    ctx.strokeStyle = idx === 1 ? 'rgba(0, 240, 255, 0.45)' : 'rgba(0, 240, 255, 0.18)';
-    ctx.lineWidth = idx === 1 ? 1.5 : 1;
-    ctx.beginPath();
-    if (idx === 2) {
-      ctx.setLineDash([4, 4]);
-    } else {
-      ctx.setLineDash([]);
-    }
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  });
-
-  // Degree markings at ring 90
-  ctx.fillStyle = 'rgba(0, 240, 255, 0.6)';
-  ctx.font = "8px 'JetBrains Mono', monospace";
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('0°', cx + 90, cy - 8);
-  ctx.fillText('90°', cx, cy + 98);
-  ctx.fillText('180°', cx - 90, cy - 8);
-  ctx.fillText('270°', cx, cy - 98);
-
-  // Rotating Central Reticle
-  const reticleAngle = STATE.animationAngle * 0.4;
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(reticleAngle);
-  ctx.strokeStyle = 'rgba(0, 240, 255, 0.8)';
-  ctx.lineWidth = 1.2;
-
-  // Draw hexagon reticle
-  ctx.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const a = (i * Math.PI) / 3;
-    const x = Math.cos(a) * 16;
-    const y = Math.sin(a) * 16;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-  ctx.stroke();
-
-  // Center cross
-  ctx.beginPath();
-  ctx.moveTo(-6, 0); ctx.lineTo(6, 0);
-  ctx.moveTo(0, -6); ctx.lineTo(0, 6);
-  ctx.stroke();
-  ctx.restore();
-
-  // Orbiting Spacecraft Marker on Main Ring (r=90)
-  const craftAngle = STATE.animationAngle;
-  const craftX = cx + Math.cos(craftAngle) * 90;
-  const craftY = cy + Math.sin(craftAngle) * 90;
-
-  // Spacecraft glowing dot
-  ctx.shadowColor = '#00F0FF';
-  ctx.shadowBlur = 10;
-  ctx.fillStyle = '#00F0FF';
-  ctx.beginPath();
-  ctx.arc(craftX, craftY, 4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-
-  // Callout leader line and tag (TGT+)
-  const tagX = craftX + 26;
-  const tagY = craftY - 18;
-  ctx.strokeStyle = '#00F0FF';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(craftX, craftY);
-  ctx.lineTo(craftX + 12, tagY);
-  ctx.lineTo(tagX + 32, tagY);
-  ctx.stroke();
-
-  ctx.fillStyle = '#00F0FF';
-  ctx.font = "8.5px 'JetBrains Mono', monospace";
-  ctx.textAlign = 'left';
-  ctx.fillText('TGT+ RAD', craftX + 16, tagY - 3);
-}
-
-// ── MATHEMATICAL PREDICTED CONIC CANVAS ANIMATION ──
-function drawConicCurve() {
+// ── MATHEMATICAL CONIC TRAJECTORY PREDICTOR ──
+function drawConicTrajectory() {
   const canvas = DOM.conicCanvas;
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -969,35 +1925,33 @@ function drawConicCurve() {
 
   ctx.clearRect(0, 0, w, h);
 
-  // Background subtle grid
-  ctx.strokeStyle = '#E2E8F0';
-  ctx.lineWidth = 0.5;
-  for (let x = 0; x < w; x += 30) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-  }
-  for (let y = 0; y < h; y += 30) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  // Tactical Grid Lines
+  ctx.strokeStyle = 'rgba(2, 132, 199, 0.12)';
+  ctx.lineWidth = 0.8;
+  for (let x = 0; x < w; x += 40) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
   }
 
-  // Earth Sphere (on left)
+  // Central Earth Body (left side)
   const earthX = 85;
   const earthY = h / 2;
-  const earthR = 24;
+  const earthR = 22;
 
-  // Earth Glow
-  const glow = ctx.createRadialGradient(earthX, earthY, earthR, earthX, earthY, earthR + 15);
-  glow.addColorStop(0, 'rgba(37, 99, 235, 0.4)');
-  glow.addColorStop(1, 'rgba(37, 99, 235, 0)');
+  const glow = ctx.createRadialGradient(earthX, earthY, earthR, earthX, earthY, earthR + 14);
+  glow.addColorStop(0, 'rgba(2, 132, 199, 0.4)');
+  glow.addColorStop(1, 'rgba(2, 132, 199, 0)');
   ctx.fillStyle = glow;
   ctx.beginPath();
-  ctx.arc(earthX, earthY, earthR + 15, 0, Math.PI * 2);
+  ctx.arc(earthX, earthY, earthR + 14, 0, Math.PI * 2);
   ctx.fill();
 
-  // Earth Body
-  const earthGrad = ctx.createRadialGradient(earthX - 6, earthY - 6, 2, earthX, earthY, earthR);
+  const earthGrad = ctx.createRadialGradient(earthX - 5, earthY - 5, 2, earthX, earthY, earthR);
   earthGrad.addColorStop(0, '#60A5FA');
   earthGrad.addColorStop(0.7, '#2563EB');
-  earthGrad.addColorStop(1, '#1E3A8A');
+  earthGrad.addColorStop(1, '#0F172A');
   ctx.fillStyle = earthGrad;
   ctx.beginPath();
   ctx.arc(earthX, earthY, earthR, 0, Math.PI * 2);
@@ -1008,12 +1962,11 @@ function drawConicCurve() {
   ctx.textAlign = 'center';
   ctx.fillText('EARTH', earthX, earthY + 3);
 
-  // Conic Elliptical Trajectory
+  // Conic Elliptical Orbital Path
   ctx.save();
   ctx.strokeStyle = '#0284C7';
-  ctx.lineWidth = 1.6;
+  ctx.lineWidth = 1.5;
   ctx.setLineDash([5, 4]);
-
   ctx.beginPath();
   ctx.ellipse(260, earthY, 175, 48, -0.05, 0, Math.PI * 2);
   ctx.stroke();
@@ -1050,81 +2003,57 @@ function drawConicCurve() {
 
   ctx.fillStyle = '#059669';
   ctx.font = "8.5px 'JetBrains Mono', monospace";
-  ctx.fillText('NODE 02: ORBIT CIRC', node2X + 8, node2Y + 12);
+  ctx.textAlign = 'left';
+  ctx.fillText('NODE 02: ORBIT CIRC', node2X + 8, node2Y + 4);
 
-  // Animated Satellite tracking on conic
-  const conicT = (STATE.animationAngle * 0.7) % (Math.PI * 2);
-  const craftX = 260 + Math.cos(conicT) * 175;
-  const craftY = earthY + Math.sin(conicT) * 48;
+  // Dynamic Animated Satellite Marker
+  STATE.animationAngle += 0.015 * STATE.timeWarp;
+  const satX = 260 + Math.cos(STATE.animationAngle) * 175;
+  const satY = earthY + Math.sin(STATE.animationAngle) * 48;
 
   ctx.fillStyle = '#0284C7';
   ctx.beginPath();
-  ctx.arc(craftX, craftY, 4, 0, Math.PI * 2);
+  ctx.arc(satX, satY, 4, 0, Math.PI * 2);
   ctx.fill();
+
+  ctx.strokeStyle = '#00E5FF';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(satX, satY, 8, 0, Math.PI * 2);
+  ctx.stroke();
 }
 
-// ── MASTER 60 FPS RENDER LOOP ──
-function renderLoop() {
-  // Advance animation angle driven by time-warp
-  const speed = 0.015 * Math.min(10, Math.max(1, Math.log10(STATE.timeWarp) + 1));
-  STATE.animationAngle += speed;
-  if (STATE.animationAngle > Math.PI * 2) {
-    STATE.animationAngle -= Math.PI * 2;
-  }
-
-  drawOrbitHud();
-  drawNavball();
-  drawConicCurve();
-
-  requestAnimationFrame(renderLoop);
+// ── MARQUEE DRIFT & OSCILLATION ENGINE ──
+let marqueeOffset = 0;
+function updateMarquee(dt) {
+  if (!DOM.marqueeContent) return;
+  marqueeOffset += dt * 25;
+  const y = Math.sin(performance.now() * 0.002) * 2.5;
+  DOM.marqueeContent.style.transform = `translate3d(${- (marqueeOffset % 180)}px, ${y}px, 0)`;
 }
 
-// ── REALTIME CLOCKS TICK ──
-function updateClocks() {
-  // 1. Mission Elapsed Time (ticking live)
-  const elapsedSec = Math.floor((Date.now() - STATE.metStartTime) / 1000) + STATE.metOffsetSec;
-  const days = Math.floor(elapsedSec / 86400);
-  const hours = Math.floor((elapsedSec % 86400) / 3600);
-  const mins = Math.floor((elapsedSec % 3600) / 60);
-  const secs = elapsedSec % 60;
-
-  DOM.metClock.textContent = `T+${String(days).padStart(3, '0')}:${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-
-  // 2. UTC Reference with ms
-  const now = new Date();
-  const year = now.getUTCFullYear();
-  const startYear = new Date(Date.UTC(year, 0, 1));
-  const dayOfYear = Math.floor((now - startYear) / 86400000) + 1;
-  const utcHours = String(now.getUTCHours()).padStart(2, '0');
-  const utcMins = String(now.getUTCMinutes()).padStart(2, '0');
-  const utcSecs = String(now.getUTCSeconds()).padStart(2, '0');
-  const utcMs = String(now.getUTCMilliseconds()).padStart(3, '0');
-
-  DOM.utcClock.textContent = `${year}-${String(dayOfYear).padStart(3, '0')} // ${utcHours}:${utcMins}:${utcSecs}.${utcMs}`;
-}
-
-// ── LAUNCH EXECUTION SEQUENCE ──
+// ── EXECUTE STAGE-0 MASTER LAUNCH SEQUENCE ──
 function executeLaunch() {
   if (!STATE.launchReady) {
     sfxError();
     return;
   }
-  sfxLaunch();
 
+  sfxClick();
   DOM.launchOverlay.classList.remove('hidden');
+
+  let count = 10;
+  DOM.countdownText.textContent = 'T-' + count;
+  DOM.launchTargetDesc.textContent = 'TERMINAL COUNTDOWN INITIATED // ENGINES ARMED';
+
   const mission = MISSIONS[STATE.mission];
   const vehicle = VEHICLES[STATE.vehicle];
 
-  DOM.launchTargetDesc.textContent = `${mission.name.toUpperCase()} ON ${vehicle.name.toUpperCase()}`;
-  DOM.launchProgressFill.style.width = '0%';
-
-  let count = 10;
-  DOM.countdownText.textContent = 'T-10';
-
   const timer = setInterval(() => {
     count--;
-    const progress = ((10 - count) / 10) * 100;
-    DOM.launchProgressFill.style.width = progress + '%';
+
+    const pct = ((10 - Math.max(0, count)) / 10) * 100;
+    DOM.launchProgressFill.style.width = pct + '%';
 
     if (count > 0) {
       DOM.countdownText.textContent = 'T-' + count;
@@ -1133,19 +2062,31 @@ function executeLaunch() {
       DOM.countdownText.textContent = 'LIFTOFF';
       DOM.countdownText.style.color = '#F59E0B';
       sfxLaunch();
+
+      // Trigger High-Velocity Engine Plume & Debris on Particle Engine
+      if (particleEngine) {
+        particleEngine.triggerLaunchSequence();
+      }
     } else if (count === -2) {
+      DOM.countdownText.textContent = 'MAX-Q TRANSONIC';
+      DOM.countdownText.style.color = '#00E5FF';
+      DOM.launchTargetDesc.textContent = 'VAPOR CONE DETECTED // VEHICLE PASSING SOUND BARRIER';
+    } else if (count === -4) {
+      DOM.countdownText.textContent = 'STAGE SEPARATION';
+      DOM.countdownText.style.color = '#38BDF8';
+      DOM.launchTargetDesc.textContent = 'FIRST STAGE MECO // VACUUM MERLIN IGNITION';
+    } else if (count === -6) {
       DOM.countdownText.textContent = 'ORBITAL INSERTION';
-      DOM.countdownText.style.color = '#00F0FF';
+      DOM.countdownText.style.color = '#10B981';
       DOM.launchTargetDesc.textContent = 'TRANSTAGE TRAJECTORY NOMINAL // DSN LOCK CONFIRMED';
-    } else if (count < -4) {
+    } else if (count < -7) {
       clearInterval(timer);
       DOM.launchOverlay.classList.add('hidden');
       DOM.countdownText.style.color = '';
 
-      // Append success message to advisor
       const row = document.createElement('div');
       row.className = 'adv-msg nominal';
-      row.textContent = `> ✓ MISSION INGEST COMPLETE: ${mission.name} deployed via ${vehicle.name}. Telemetry locked.`;
+      row.textContent = `> ✓ MISSION DEPLOYMENT SUCCESS: ${mission.name} inserted into ${mission.periapsis} orbit via ${vehicle.name}. Telemetry nominal.`;
       DOM.advisorLog.appendChild(row);
       DOM.advisorLog.scrollTop = DOM.advisorLog.scrollHeight;
     }
@@ -1187,7 +2128,7 @@ function bindEvents() {
     });
   });
 
-  // HUD View Switcher Tabs (Chassis CAD / Orbit Trajectory)
+  // HUD View Switcher Tabs (Chassis CAD / Orbit Trajectory / Vehicle Silhouette)
   document.querySelectorAll('.view-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       sfxClick();
@@ -1195,10 +2136,24 @@ function bindEvents() {
       btn.classList.add('active');
       STATE.activeView = btn.dataset.view;
 
-      document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
-      const targetPanel = document.getElementById('view-' + STATE.activeView);
-      if (targetPanel) {
-        targetPanel.classList.add('active');
+      // Handle CAD vs Particle Canvas display
+      const viewCad = document.getElementById('view-cad');
+      const viewTraj = document.getElementById('view-trajectory');
+
+      if (STATE.activeView === 'cad') {
+        if (viewCad) viewCad.classList.add('active');
+        if (viewTraj) viewTraj.classList.remove('active');
+      } else {
+        if (viewCad) viewCad.classList.remove('active');
+        if (viewTraj) viewTraj.classList.add('active');
+
+        if (particleEngine) {
+          if (STATE.activeView === 'vehicle') {
+            particleEngine.buildShape('vehicle');
+          } else {
+            particleEngine.buildShape(STATE.mission);
+          }
+        }
       }
     });
   });
@@ -1227,6 +2182,61 @@ function bindEvents() {
     }
   });
 
+  // Motion Mode Toggle: Full -> Reduced -> Off
+  if (DOM.btnMotionMode) {
+    DOM.btnMotionMode.addEventListener('click', () => {
+      sfxClick();
+      if (STATE.motionMode === 'full') {
+        STATE.motionMode = 'reduced';
+      } else if (STATE.motionMode === 'reduced') {
+        STATE.motionMode = 'off';
+      } else {
+        STATE.motionMode = 'full';
+      }
+      DOM.motionState.textContent = STATE.motionMode.toUpperCase();
+      if (particleEngine) particleEngine.motionMode = STATE.motionMode;
+    });
+  }
+
+  // Play / Replay 6s Intro
+  if (DOM.btnPlayIntro) {
+    DOM.btnPlayIntro.addEventListener('click', () => {
+      sfxClick();
+      if (fxEngine && DOM.introOverlay) {
+        DOM.introOverlay.classList.remove('hidden', 'fade-out');
+        fxEngine.playIntro(() => {
+          DOM.introOverlay.classList.add('fade-out');
+          setTimeout(() => DOM.introOverlay.classList.add('hidden'), 600);
+        });
+      }
+    });
+  }
+
+  // Skip Intro Button
+  if (DOM.btnSkipIntro) {
+    DOM.btnSkipIntro.addEventListener('click', () => {
+      if (fxEngine) fxEngine.skipIntro();
+    });
+  }
+
+  // Subsystem Marquee Chips Rapid Selection
+  DOM.marqueeChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      sfxClick();
+      const cat = chip.dataset.cat;
+      const targetTab = document.querySelector(`.out-tab[data-cat="${cat}"]`);
+      if (targetTab) targetTab.click();
+
+      // Smooth scroll to outfitter card
+      const outfitterCard = document.getElementById('outfitter-card');
+      if (outfitterCard) {
+        outfitterCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        outfitterCard.classList.add('spring-shake');
+        setTimeout(() => outfitterCard.classList.remove('spring-shake'), 450);
+      }
+    });
+  });
+
   // Launch Button
   DOM.btnLaunch.addEventListener('click', executeLaunch);
 
@@ -1243,19 +2253,15 @@ function bindEvents() {
     }
   });
 
-  // Sidebar navigation scroll & active highlights
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', e => {
-      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-    });
-  });
-
   // Keyboard Shortcuts
   document.addEventListener('keyup', e => {
     const key = e.key.toLowerCase();
 
-    // [1-3] Mission Selection
+    if (e.key === 'Escape') {
+      if (fxEngine) fxEngine.skipIntro();
+      if (DOM.sourcesModal) DOM.sourcesModal.classList.add('hidden');
+    }
+
     if (key === '1') {
       const btn = document.querySelector('.choice-btn[data-mission="leo"]');
       if (btn) btn.click();
@@ -1267,7 +2273,6 @@ function bindEvents() {
       if (btn) btn.click();
     }
 
-    // [Q-T] Subsystem Dock Tabs
     if (key === 'q') {
       const t = document.querySelector('.out-tab[data-cat="power"]');
       if (t) t.click();
@@ -1285,12 +2290,10 @@ function bindEvents() {
       if (t) t.click();
     }
 
-    // [M] Audio Mute Toggle
     if (key === 'm') {
       DOM.btnAudio.click();
     }
 
-    // [Space] Stage-0 Launch Sequencer
     if (key === ' ') {
       e.preventDefault();
       executeLaunch();
@@ -1298,36 +2301,174 @@ function bindEvents() {
   });
 }
 
-// ── ERROR BOUNDARY ──
-window.onerror = function (msg, src, line) {
-  if (DOM.errorScreen && DOM.errorMsg) {
-    DOM.errorMsg.textContent = `${msg} (Line ${line})`;
-    DOM.errorScreen.classList.remove('hidden');
+// ── REALTIME CLOCKS ──
+function updateClocks() {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const start = new Date(Date.UTC(year, 0, 0));
+  const diff = now - start;
+  const oneDay = 1000 * 60 * 60 * 24;
+  const dayOfYear = Math.floor(diff / oneDay);
+
+  const hh = String(now.getUTCHours()).padStart(2, '0');
+  const mm = String(now.getUTCMinutes()).padStart(2, '0');
+  const ss = String(now.getUTCSeconds()).padStart(2, '0');
+  const ms = String(now.getUTCMilliseconds()).padStart(3, '0');
+
+  if (DOM.utcClock) {
+    DOM.utcClock.textContent = `${year}-${String(dayOfYear).padStart(3, '0')} // ${hh}:${mm}:${ss}.${ms}`;
   }
-  return false;
-};
+
+  const elapsedSec = STATE.metOffsetSec + Math.floor((Date.now() - STATE.metStartTime) / 1000) * STATE.timeWarp;
+  const metDays = Math.floor(elapsedSec / 86400);
+  const remSec = elapsedSec % 86400;
+  const metH = Math.floor(remSec / 3600);
+  const metM = Math.floor((remSec % 3600) / 60);
+  const metS = remSec % 60;
+
+  if (DOM.metClock) {
+    DOM.metClock.textContent = `T+${String(metDays).padStart(3, '0')}:${String(metH).padStart(2, '0')}:${String(metM).padStart(2, '0')}:${String(metS).padStart(2, '0')}`;
+  }
+}
+
+// ── UNIFIED 60 FPS RENDER & PERFORMANCE TELEMETRY LOOP ──
+let lastLoopTime = performance.now();
+const frameHistory = [];
+
+function renderLoop(now) {
+  const dt = Math.min(0.05, (now - lastLoopTime) * 0.001);
+  const frameDeltaMs = now - lastLoopTime;
+  lastLoopTime = now;
+
+  // Track FPS and frame time
+  frameHistory.push(frameDeltaMs);
+  if (frameHistory.length > 30) frameHistory.shift();
+
+  let sum = 0;
+  for (let i = 0; i < frameHistory.length; i++) sum += frameHistory[i];
+  const avgDelta = sum / frameHistory.length;
+  const fps = Math.min(60.0, 1000 / Math.max(1, avgDelta));
+
+  // Auto-throttle particle engine for 60 FPS guarantee
+  if (particleEngine) {
+    if (avgDelta > 16.6 && particleEngine.activeCount > particleEngine.minCount) {
+      particleEngine.activeCount = Math.max(particleEngine.minCount, particleEngine.activeCount - 250);
+    } else if (avgDelta < 13.0 && particleEngine.activeCount < particleEngine.maxCount) {
+      particleEngine.activeCount = Math.min(particleEngine.maxCount, particleEngine.activeCount + 100);
+    }
+  }
+
+  // Update Telemetry FPS Badge
+  if (DOM.fpsVal && DOM.fpsMeta) {
+    DOM.fpsVal.textContent = `${fps.toFixed(1)} FPS`;
+    const pCount = particleEngine ? `${(particleEngine.activeCount / 1000).toFixed(1)}k P` : '';
+    DOM.fpsMeta.textContent = `| ${avgDelta.toFixed(1)}ms | ${pCount}`;
+    if (DOM.fpsDot) {
+      DOM.fpsDot.className = fps >= 55 ? 'fps-dot' : (fps >= 40 ? 'fps-dot warn' : 'fps-dot alert');
+    }
+  }
+
+  // 1. Update Gauge Spring Physics (Smooth bounce & settle)
+  if (DOM.massFill) DOM.massFill.style.width = `${Math.min(100, Math.max(0, GAUGE_SPRINGS.mass.update(dt)))}%`;
+  if (DOM.powerFill) DOM.powerFill.style.width = `${Math.min(100, Math.max(0, GAUGE_SPRINGS.power.update(dt)))}%`;
+  if (DOM.budgetFill) DOM.budgetFill.style.width = `${Math.min(100, Math.max(0, GAUGE_SPRINGS.budget.update(dt)))}%`;
+  if (DOM.dataFill) DOM.dataFill.style.width = `${Math.min(100, Math.max(0, GAUGE_SPRINGS.data.update(dt)))}%`;
+
+  // 2. Update Kinetic Particle Engine
+  if (particleEngine) {
+    particleEngine.update(dt);
+    particleEngine.draw();
+  }
+
+  // 3. Update Global Screen-Wide FX Engine
+  if (fxEngine) {
+    fxEngine.updateAndDraw(dt);
+  }
+
+  // 4. Update Navball & Trajectory Conic
+  drawNavball();
+  drawConicTrajectory();
+
+  // 5. Update Marquee Ribbon Drift
+  updateMarquee(dt);
+
+  requestAnimationFrame(renderLoop);
+}
 
 // ── SYSTEM BOOT SEQUENCE ──
 (function boot() {
-  const loader = document.getElementById('loading-skeleton');
-  const app = document.getElementById('app');
+  cacheDom();
 
+  // Respect system prefers-reduced-motion
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    STATE.motionMode = 'reduced';
+    if (DOM.motionState) DOM.motionState.textContent = 'REDUCED';
+  }
+
+  // Initialize Particle Engine on Tactical HUD canvas
+  if (DOM.orbitCanvas) {
+    particleEngine = new ParticleField(DOM.orbitCanvas);
+    particleEngine.motionMode = STATE.motionMode;
+  }
+
+  // Initialize Screen-Wide FX Engine
+  if (DOM.fxCanvas) {
+    fxEngine = new FxEngine(DOM.fxCanvas);
+  }
+
+  bindEvents();
+  renderSubsystems('power');
+  updateTelemetry();
+  updateChassisSvgHighlights();
+
+  // Handle Tab Visibility to Save Battery & GPU
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (particleEngine) particleEngine.motionMode = 'off';
+    } else {
+      if (particleEngine) particleEngine.motionMode = STATE.motionMode;
+    }
+  });
+
+  // Fade out loader & Reveal Cockpit
   setTimeout(() => {
-    if (loader) loader.classList.add('fade-out');
+    if (DOM.loader) DOM.loader.classList.add('fade-out');
 
     setTimeout(() => {
-      if (loader) loader.classList.add('hidden');
-      if (app) app.classList.remove('hidden');
+      if (DOM.loader) DOM.loader.classList.add('hidden');
+      if (DOM.app) DOM.app.classList.remove('hidden');
 
-      cacheDom();
-      bindEvents();
-      renderSubsystems('power');
-      updateTelemetry();
-      updateChassisSvgHighlights();
+      // Staggered arrival animation across cockpit panels
+      const panels = [
+        document.getElementById('sidebar'),
+        document.querySelector('.hud-header'),
+        document.getElementById('sub-header'),
+        document.getElementById('selector-section'),
+        document.getElementById('telemetry-grid'),
+        document.getElementById('subsystem-marquee-strip'),
+        document.getElementById('middle-section'),
+        document.getElementById('bottom-section')
+      ];
 
-      // Launch 60 FPS animation loops and clocks
+      panels.forEach((p, idx) => {
+        if (p) {
+          p.classList.add('stagger-item');
+          p.style.animationDelay = `${idx * 45}ms`;
+        }
+      });
+
+      // Start 60 FPS Render Loop & Clocks
       requestAnimationFrame(renderLoop);
-      setInterval(updateClocks, 50); // 20 Hz clock refresh for ms precision
+      setInterval(updateClocks, 50);
+
+      // Play 6s Kinetic Particle Intro on First Load
+      if (fxEngine && DOM.introOverlay) {
+        DOM.introOverlay.classList.remove('hidden');
+        fxEngine.playIntro(() => {
+          DOM.introOverlay.classList.add('fade-out');
+          setTimeout(() => DOM.introOverlay.classList.add('hidden'), 600);
+        });
+      }
     }, 400);
-  }, 1200);
+  }, 1000);
 })();

@@ -1381,3 +1381,214 @@ html, body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   PASS B ADDITIONS: PHYSICAL MOTION, FX CANVAS & KINETIC AVIONICS
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Global Screen-Wide FX & Particle Stream Canvas */
+#fx-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 8500;
+}
+
+/* 6-Second Kinetic Particle Intro Overlay */
+#intro-overlay {
+  position: fixed;
+  inset: 0;
+  background: #070B14;
+  z-index: 9200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+#intro-overlay.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+.intro-controls {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  z-index: 9210;
+}
+.btn-skip-intro {
+  background: rgba(15, 23, 42, 0.8);
+  color: var(--accent-cyan);
+  border: 1.5px solid var(--accent-cyan);
+  border-radius: 4px;
+  padding: 8px 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-skip-intro:hover {
+  background: rgba(0, 229, 255, 0.2);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.5);
+  transform: translateY(-1px);
+}
+.intro-center {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 9205;
+}
+.intro-crest {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+}
+.intro-title {
+  color: #FFFFFF;
+  font-size: 46px;
+  font-weight: 900;
+  letter-spacing: 8px;
+  text-shadow: 0 0 24px rgba(0, 229, 255, 0.65);
+}
+.intro-sub {
+  color: var(--accent-cyan);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 4px;
+}
+
+/* Subsystem Avionics Marquee Ribbon */
+.marquee-strip {
+  background: var(--panel-white);
+  border: 1.5px solid var(--border-light);
+  border-radius: 6px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  overflow: hidden;
+}
+.marquee-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-dim);
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+.marquee-track {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+}
+.marquee-content {
+  display: flex;
+  gap: 10px;
+  will-change: transform;
+}
+.marquee-chip {
+  background: var(--panel-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  padding: 5px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-main);
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.marquee-chip:hover {
+  background: var(--panel-white);
+  border-color: var(--brand-blue);
+  color: var(--brand-blue);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.18);
+}
+.marquee-chip .m-title {
+  font-weight: 800;
+  color: var(--brand-blue);
+}
+.marquee-chip .m-sub {
+  font-size: 9px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+/* Live Avionics Telemetry FPS Badge */
+.fps-badge {
+  background: #0F172A;
+  color: var(--accent-cyan);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #1E293B;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  letter-spacing: 0.5px;
+}
+.fps-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10B981;
+  transition: background 0.3s ease;
+}
+.fps-dot.warn { background: #F59E0B; }
+.fps-dot.alert { background: #EF4444; }
+.fps-sub {
+  color: #64748B;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+/* UI Motion Physics & Staggered Transitions */
+.stagger-item {
+  animation: staggerIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes staggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.spring-shake {
+  animation: springShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+@keyframes springShake {
+  10%, 90% { transform: translate3d(-3px, 0, 0); }
+  20%, 80% { transform: translate3d(4px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-5px, 0, 0); }
+  40%, 60% { transform: translate3d(5px, 0, 0); }
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+  }
+}
+
