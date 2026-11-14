@@ -721,65 +721,138 @@ function drawConicCanvas() {
   const canvas = DOM.canvasConic;
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  const w = canvas.width;
-  const h = canvas.height;
-
+  
+  // High-DPI crisp rendering
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  const w = rect.width || 800;
+  const h = rect.height || 180;
+  
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+  }
+  
+  ctx.save();
+  ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, w, h);
 
-  // Background Grid
-  ctx.strokeStyle = '#EDF2F7';
+  // Subtle background grid
+  ctx.strokeStyle = '#F1F5F9';
   ctx.lineWidth = 1;
-  for (let x = 0; x < w; x += 50) {
+  for (let x = 0; x < w; x += 40) {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
   }
+  for (let y = 0; y < h; y += 40) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
 
-  const earthX = 80;
+  const earthX = Math.max(70, w * 0.12);
   const earthY = h / 2;
 
-  // Earth Body
+  // Earth Globe Circle
   ctx.fillStyle = '#0B6E99';
   ctx.beginPath();
-  ctx.arc(earthX, earthY, 18, 0, Math.PI * 2);
+  ctx.arc(earthX, earthY, 22, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = "8.5px 'JetBrains Mono', monospace";
-  ctx.textAlign = 'center';
-  ctx.fillText('EARTH', earthX, earthY + 3);
+  ctx.strokeStyle = '#93C5FD';
+  ctx.lineWidth = 2;
+  ctx.stroke();
 
-  // Orbital Conic
+  // Crisp Earth label
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('EARTH', earthX, earthY);
+
+  // Orbital Transfer Ellipse
+  const centerX = w * 0.52;
+  const radiusX = w * 0.38;
+  const radiusY = Math.min(55, h * 0.32);
+
   ctx.strokeStyle = '#0B6E99';
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([5, 4]);
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 5]);
   ctx.beginPath();
-  ctx.ellipse(320, earthY, 240, 45, -0.04, 0, Math.PI * 2);
+  ctx.ellipse(centerX, earthY, radiusX, radiusY, -0.02, 0, Math.PI * 2);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Injection Node
-  ctx.fillStyle = '#B45309';
+  // Helper for drawing node pills that never strike through text
+  function drawNodePill(x, y, text, color, offsetAbove) {
+    ctx.font = "bold 12px system-ui, -apple-system, sans-serif";
+    const textWidth = ctx.measureText(text).width;
+    const pillW = textWidth + 18;
+    const pillH = 22;
+    const pillY = offsetAbove ? y - 30 : y + 10;
+    const pillX = x - pillW / 2;
+
+    // Node indicator dot
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Line from dot to pill
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, offsetAbove ? pillY + pillH : pillY);
+    ctx.stroke();
+
+    // Solid white background pill
+    ctx.fillStyle = '#FFFFFF';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetY = 1;
+    ctx.beginPath();
+    ctx.roundRect(pillX, pillY, pillW, pillH, 4);
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Text
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, pillY + pillH / 2);
+  }
+
+  // Injection Node 1 (Offset above)
+  const node1X = centerX - radiusX * 0.45;
+  const node1Y = earthY - radiusY * 0.88;
+  drawNodePill(node1X, node1Y, 'NODE 1: INJECTION', '#B45309', true);
+
+  // Circulation Node 2 (Offset below)
+  const node2X = centerX + radiusX * 0.70;
+  const node2Y = earthY + radiusY * 0.72;
+  drawNodePill(node2X, node2Y, 'NODE 2: CIRC', '#15803D', false);
+
+  // Animated Satellite Marker
+  conicAngle += 0.015 * STATE.timeWarp;
+  const satX = centerX + Math.cos(conicAngle) * radiusX;
+  const satY = earthY + Math.sin(conicAngle) * radiusY;
+
+  // Satellite outer ring
+  ctx.strokeStyle = '#0284C7';
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(280, earthY - 42, 4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.textAlign = 'left';
-  ctx.fillText('NODE 1: INJECTION', 290, earthY - 40);
+  ctx.arc(satX, satY, 7, 0, Math.PI * 2);
+  ctx.stroke();
 
-  // Circulation Node
-  ctx.fillStyle = '#1A7F4B';
-  ctx.beginPath();
-  ctx.arc(500, earthY + 30, 4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillText('NODE 2: CIRC', 510, earthY + 34);
-
-  // Animated Satellite
-  conicAngle += 0.02 * STATE.timeWarp;
-  const satX = 320 + Math.cos(conicAngle) * 240;
-  const satY = earthY + Math.sin(conicAngle) * 45;
-
-  ctx.fillStyle = '#14181F';
+  // Satellite inner core
+  ctx.fillStyle = '#0F172A';
   ctx.beginPath();
   ctx.arc(satX, satY, 4, 0, Math.PI * 2);
   ctx.fill();
+
+  ctx.restore();
 }
 
 // ── HOLD-TO-CONFIRM LAUNCH ACTUATOR & POST-MORTEM ──
