@@ -1,0 +1,248 @@
+{
+  "constants": {
+    "earth_mu": {
+      "value": 398600.4418,
+      "unit": "km^3/s^2",
+      "source_url": "https://ssd.jpl.nasa.gov/astro_constants.html",
+      "note": "Standard gravitational parameter for Earth (GM) from NASA JPL Solar System Dynamics."
+    },
+    "earth_radius": {
+      "value": 6378.137,
+      "unit": "km",
+      "source_url": "https://ssd.jpl.nasa.gov/astro_constants.html",
+      "note": "WGS-84 / IERS equatorial radius of the Earth."
+    },
+    "standard_gravity": {
+      "value": 9.80665,
+      "unit": "m/s^2",
+      "source_url": "https://physics.nist.gov/cgi-bin/cuu/Value?gn",
+      "note": "Standard acceleration of gravity at Earth sea level (CODATA / NIST)."
+    }
+  },
+  "launch_vehicles": {
+    "falcon9": {
+      "name": "Falcon 9",
+      "leo_capacity": {
+        "value": 22800,
+        "unit": "kg",
+        "source_url": "https://www.spacex.com/vehicles/falcon-9/",
+        "note": "vendor-published: Maximum payload to LEO in expendable configuration."
+      },
+      "tli_capacity": {
+        "value": 4020,
+        "unit": "kg",
+        "source_url": "https://www.spacex.com/vehicles/falcon-9/",
+        "note": "vendor-published: Payload to Mars / Trans-Lunar Injection (TLI)."
+      },
+      "fairing_diameter": {
+        "value": 5.2,
+        "unit": "m",
+        "source_url": "https://www.spacex.com/vehicles/falcon-9/",
+        "note": "vendor-published: Composite payload fairing outer diameter."
+      },
+      "fairing_height": {
+        "value": 13.1,
+        "unit": "m",
+        "source_url": "https://www.spacex.com/vehicles/falcon-9/",
+        "note": "vendor-published: Composite payload fairing height."
+      },
+      "cost_per_launch": {
+        "value": 67.0,
+        "unit": "USD (M)",
+        "source_url": "https://www.spacex.com/media/Capabilities&Services.pdf",
+        "note": "vendor-published: Commercial dedicated launch list price."
+      }
+    },
+    "falconheavy": {
+      "name": "Falcon Heavy",
+      "leo_capacity": {
+        "value": 63800,
+        "unit": "kg",
+        "source_url": "https://www.spacex.com/vehicles/falcon-heavy/",
+        "note": "vendor-published: Maximum payload to LEO in expendable configuration."
+      },
+      "tli_capacity": {
+        "value": 16800,
+        "unit": "kg",
+        "source_url": "https://www.spacex.com/vehicles/falcon-heavy/",
+        "note": "vendor-published: Payload to Mars / Trans-Lunar Injection (TLI)."
+      },
+      "fairing_diameter": {
+        "value": 5.2,
+        "unit": "m",
+        "source_url": "https://www.spacex.com/vehicles/falcon-heavy/",
+        "note": "vendor-published: Standard composite fairing diameter."
+      },
+      "fairing_height": {
+        "value": 13.1,
+        "unit": "m",
+        "source_url": "https://www.spacex.com/vehicles/falcon-heavy/",
+        "note": "vendor-published: Standard composite fairing height."
+      },
+      "cost_per_launch": {
+        "value": 97.0,
+        "unit": "USD (M)",
+        "source_url": "https://www.spacex.com/media/Capabilities&Services.pdf",
+        "note": "vendor-published: Baseline reusable side booster configuration."
+      }
+    },
+    "sls_block1": {
+      "name": "SLS Block 1",
+      "leo_capacity": {
+        "value": 95000,
+        "unit": "kg",
+        "source_url": "https://www.nasa.gov/sites/default/files/atoms/files/sls_fact_sheet.pdf",
+        "note": "NASA Launch Services Program / SLS Fact Sheet: Capability to LEO."
+      },
+      "tli_capacity": {
+        "value": 27000,
+        "unit": "kg",
+        "source_url": "https://www.nasa.gov/sites/default/files/atoms/files/sls_fact_sheet.pdf",
+        "note": "NASA SLS Fact Sheet: Capability to Trans-Lunar Injection (TLI) with ICPS upper stage."
+      },
+      "fairing_diameter": {
+        "value": 5.0,
+        "unit": "m",
+        "source_url": "https://www.nasa.gov/sites/default/files/atoms/files/sls_fact_sheet.pdf",
+        "note": "NASA SLS Fact Sheet: Universal Stage Adapter payload fairing diameter."
+      },
+      "fairing_height": {
+        "value": 19.1,
+        "unit": "m",
+        "source_url": "https://www.nasa.gov/sites/default/files/atoms/files/sls_fact_sheet.pdf",
+        "note": "NASA SLS Fact Sheet: Cargo shroud envelope height."
+      },
+      "cost_per_launch": {
+        "value": 2100.0,
+        "unit": "USD (M)",
+        "source_url": "https://www.nasa.gov/wp-content/uploads/2023/12/launch-services-program-fact-sheet.pdf",
+        "note": "estimate: NASA Inspector General audited marginal cost per launch."
+      }
+    }
+  },
+  "deep_space_network": {
+    "complexes": [
+      {
+        "name": "Goldstone Deep Space Communications Complex",
+        "code": "GDSCC / DSN-14",
+        "location": "Barstow, California, USA (35.426° N, 116.889° W)",
+        "source_url": "https://rapweb.jpl.nasa.gov/Planning/DSNCapabilities.pdf",
+        "antennas": ["70m (DSS-14)", "34m BWG (DSS-24)", "34m BWG (DSS-25)", "34m BWG (DSS-26)"]
+      },
+      {
+        "name": "Madrid Deep Space Communications Complex",
+        "code": "MDSCC / DSN-63",
+        "location": "Robledo de Chavela, Spain (40.427° N, 4.250° W)",
+        "source_url": "https://rapweb.jpl.nasa.gov/Planning/DSNCapabilities.pdf",
+        "antennas": ["70m (DSS-63)", "34m BWG (DSS-54)", "34m BWG (DSS-55)", "34m BWG (DSS-56)"]
+      },
+      {
+        "name": "Canberra Deep Space Communication Complex",
+        "code": "CDSCC / DSN-43",
+        "location": "Tidbinbilla, ACT, Australia (35.401° S, 148.981° E)",
+        "source_url": "https://rapweb.jpl.nasa.gov/Planning/DSNCapabilities.pdf",
+        "antennas": ["70m (DSS-43)", "34m BWG (DSS-34)", "34m BWG (DSS-35)", "34m BWG (DSS-36)"]
+      }
+    ],
+    "bands": {
+      "s_band": {
+        "freq_range_ghz": "2.025 - 2.290 GHz",
+        "typical_max_rate_mbps": 5.0,
+        "typical_link_margin_db": 12.4,
+        "source_url": "https://rapweb.jpl.nasa.gov/Planning/DSNCapabilities.pdf",
+        "note": "Standard near-Earth and low-gain telemetry band."
+      },
+      "x_band": {
+        "freq_range_ghz": "7.145 - 8.450 GHz",
+        "typical_max_rate_mbps": 40.0,
+        "typical_link_margin_db": 18.2,
+        "source_url": "https://rapweb.jpl.nasa.gov/Planning/DSNCapabilities.pdf",
+        "note": "Workhorse deep-space science downlink and command uplink band."
+      },
+      "ka_band": {
+        "freq_range_ghz": "31.8 - 34.7 GHz",
+        "typical_max_rate_mbps": 150.0,
+        "typical_link_margin_db": 23.4,
+        "source_url": "https://rapweb.jpl.nasa.gov/Planning/DSNCapabilities.pdf",
+        "note": "High-bandwidth 34m/70m DSN science downlink."
+      }
+    }
+  },
+  "orbital_profiles": {
+    "leo": {
+      "name": "LEO Satellite (Earth Observation)",
+      "target_altitude_km": 500.0,
+      "inclination_deg": 51.6,
+      "orbital_velocity": {
+        "value": 7.613,
+        "unit": "km/s",
+        "source_url": "https://ssd.jpl.nasa.gov/",
+        "note": "Calculated from vis-viva equation at 500 km altitude."
+      },
+      "period_min": {
+        "value": 94.6,
+        "unit": "min",
+        "source_url": "https://ssd.jpl.nasa.gov/",
+        "note": "Calculated: T = 2 * pi * sqrt(a^3 / mu)."
+      },
+      "eclipse_duration_min": {
+        "value": 35.8,
+        "unit": "min",
+        "source_url": "https://ssd.jpl.nasa.gov/",
+        "note": "eclipse fraction ~ (1/pi)*asin(R/(R+h)) = 37.8% of 94.6 min."
+      },
+      "dv_requirement": {
+        "value": 150,
+        "unit": "m/s",
+        "source_url": "https://www.nasa.gov/launch-services-program/",
+        "note": "Orbit insertion circularization and station-keeping budget."
+      }
+    },
+    "lunar": {
+      "name": "Lunar Rover (Artemis Relay)",
+      "target_altitude_km": 384400.0,
+      "inclination_deg": 28.5,
+      "orbital_velocity": {
+        "value": 10.92,
+        "unit": "km/s",
+        "source_url": "https://ssd.jpl.nasa.gov/",
+        "note": "Trans-Lunar Injection velocity from 185 km parking orbit."
+      },
+      "period_min": {
+        "value": 655.0,
+        "unit": "min",
+        "source_url": "https://ssd.jpl.nasa.gov/",
+        "note": "estimate: Free-return elliptical trajectory period."
+      },
+      "dv_requirement": {
+        "value": 3100,
+        "unit": "m/s",
+        "source_url": "https://www.nasa.gov/exploration/systems/sls/index.html",
+        "note": "TLI burn delta-V requirement from 185 km parking orbit."
+      }
+    },
+    "mars": {
+      "name": "Mars Probe (Interplanetary)",
+      "target_altitude_km": 225000000.0,
+      "inclination_deg": 1.85,
+      "orbital_velocity": {
+        "value": 11.57,
+        "unit": "km/s",
+        "source_url": "https://ssd.jpl.nasa.gov/",
+        "note": "Heliocentric hyperbolic departure velocity."
+      },
+      "period_min": {
+        "value": 372960.0,
+        "unit": "min",
+        "source_url": "https://ssd.jpl.nasa.gov/",
+        "note": "Hohmann transfer half-period (~259 days)."
+      },
+      "dv_requirement": {
+        "value": 5600,
+        "unit": "m/s",
+        "source_url": "https://www.nasa.gov/launch-services-program/",
+        "note": "Trans-Mars Injection (TMI) + Mars orbit capture budget."
+      }
+    }
+  }
+}

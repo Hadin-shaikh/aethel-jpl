@@ -18,22 +18,31 @@ python -m http.server 8000
 
 ## Tech Stack
 
-- **100% Vanilla HTML5, CSS3, ES6 JavaScript** — zero external dependencies
-- **Kinetic Particle Engine** — 3,000 to 12,000 oriented dashes, divergence-free curl noise, spring physics, and 8-bucket single draw pass
-- **Web Audio API** — synthesized UI sounds (no external audio assets)
-- **DocumentFragment** rendering, `requestAnimationFrame` single-loop physics
-- **Self-contained & ultra-light** — loads instantly on any connection, offline capable
+- **Vanilla HTML5, CSS3, ES6 JavaScript** — zero framework bloat, fast 60 FPS performance
+- **Three.js (r128)** — 3D Earth globe with Blue Marble textures, orbital inclination lines, and satellite model
+- **Runge-Kutta 4th Order Astrodynamics** — numerical orbital integration
+- **Design Review Diagnostic Engine** — 10 mission-critical engineering rules with one-click Auto-Fix
+- **Web Audio API** — synthesized cockpit audio sounds
+- **Verified Data Store** — `/data/reference.json` citing NASA LSP, JPL DSN, and SpaceX sources
+- **Offline Capable** — local vendor bundles in `/assets/vendor/` and textures in `/assets/textures/`
+
+## Five-View Architecture
+
+1. **01 Mission:** Target Trajectory Profile (LEO Satellite, Lunar Rover, Mars Probe) with live 3D Earth view and subsystem dock.
+2. **02 Vehicle:** Launch vehicle comparison (Falcon 9, Falcon Heavy, SLS Block 1) with payload capacity vs mass limits.
+3. **03 Build:** Dedicated full-width Payload Outfitter workspace across Power, Comms, Instruments, Propulsion, and Chassis.
+4. **04 Analyze:** In-depth astrodynamics, Keplerian orbital elements ($a, e, i, T, v$), and mathematical equations.
+5. **05 Launch:** Stage-0 Launch Sequencer with 1.5s Hold-to-Confirm ignition and physical Post-Mortem failure analysis.
 
 ## Controls
 
 | Key | Action |
 |-----|--------|
 | `1` `2` `3` | Select mission profile (LEO / Lunar / Mars) |
-| `Q` `W` `E` `R` `T` | Switch subsystem outfitter dock |
-| `M` | Toggle synthesized cockpit audio |
-| `Space` | Stage-0 Master Launch Sequencer (when nominal) |
-| `Esc` | Skip 6-second kinetic particle intro / close modals |
-| `Click / Touch` | Emit radial particle shockwave & interact with flow field |
+| `M` | Toggle synthesized audio |
+| `Esc` | Close Advisor Drawer or formula modals |
+| `Hold Launch` | Hold for 1.5 seconds to confirm ignition sequence |
+
 
 ## Data Sources
 

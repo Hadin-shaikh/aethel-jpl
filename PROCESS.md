@@ -58,5 +58,42 @@
 ### 4. Physical UI Motion & Marquee Ribbon
 - **Second-Order Spring Solvers:** Drives telemetry gauge fill bars, card hover states, and dialog entrances with slight natural overshoot and settle.
 - **Subsystem Marquee Ribbon:** Floating cockpit ribbon drifting horizontally on a continuous vertical sinusoidal wave ($y = 2.5 \sin(0.002 t)$), pausing on hover, and jumping directly to the clicked outfitter category.
+
+---
+
+## PASS C: CALM ENGINEERING TOOL, 3D EARTH VIEW & DESIGN REVIEW DIAGNOSTICS
+
+### 1. Five-View Architecture Restored
+- Replaced the single long scroll with five dedicated views driven by the persistent left sidebar:
+  1. `01 Mission`: Target Trajectory Profile (LEO, Lunar, Mars), 3D Earth Orbit Viewport, and Payload Outfitter dock.
+  2. `02 Vehicle`: Launch Vehicle Selection comparing Falcon 9, Falcon Heavy, and SLS Block 1 with verified payload capacity, TLI capacity, fairing sizes, and cost.
+  3. `03 Build`: Full-width Payload Outfitter workspace with live mass, power, and data calculations across 5 categories.
+  4. `04 Analyze`: Real-time Runge-Kutta 4 astrodynamics, Keplerian orbital elements ($a, e, i, T, v$), vis-viva velocity, and eclipse calculations.
+  5. `05 Launch`: Stage-0 Launch Sequencer featuring **Hold-to-Confirm** actuator (1.5s press) and physical Post-Mortem failure sequence.
+
+### 2. Verified Real NASA & LSP Data (`/data/reference.json`)
+- Every number is backed by a verified source citation, unit, and URL:
+  - **Launch Vehicles:** SLS Block 1 LEO (95t) and TLI (27t) from NASA SLS Fact Sheet; Falcon 9 & Falcon Heavy from vendor-published specs.
+  - **Deep Space Network (DSN):** Ground stations at Goldstone (DSS-14), Madrid (DSS-63), and Canberra (DSS-43); 34m and 70m dish antenna capabilities; S, X, and Ka-band link budgets from JPL DSN Planning Document.
+  - **Astrodynamics Constants:** Earth $\mu = 398600.4418 \text{ km}^3/\text{s}^2$, Earth $R = 6378.137 \text{ km}$, $g_0 = 9.80665 \text{ m/s}^2$ from JPL Solar System Dynamics and NIST.
+  - Estimated numbers marked with explicit `est.` tag in the UI.
+
+### 3. Design Brief & Calm Neutral Palette (`/docs/design-brief.md`)
+- Clean, understated, high-contrast palette: Background `#F6F7F9`, Surface `#FFFFFF`, Border `#E1E4E8`, Text `#14181F`, Muted `#5B6472`, Accent `#0B6E99` (muted deep blue-teal). Dark styling permitted solely within the 3D viewport.
+- Removed flashy sci-fi artifacts, decorative particles on static pages, fake matrix text, and emojis. Replaced with clean SVG icons, 1px borders, and 6px border-radius.
+- Every vitals tile includes a "Show the math" disclosure drawer displaying the substituted formula (Tsiolkovsky, Vis-Viva, Kepler's 3rd Law, Eclipse fraction).
+
+### 4. Interactive 3D Earth Orbit Viewport (`/src/orbit3d/scene.js`)
+- Three.js WebGL viewport rendering a textured Earth globe (NASA Blue Marble Apollo 17 day map), thin atmospheric rim, directional sunlight with visible terminator line, and starfield.
+- Orbit trajectory line mapped to actual orbital inclination ($51.6^\circ$ for LEO, $28.5^\circ$ for Lunar, $1.85^\circ$ for Mars).
+- Spacecraft satellite model with dynamic modular solar wings, antenna dish, and thruster nozzle matching equipped subsystem state.
+- OrbitControls with camera reset and fullscreen buttons. Smooth camera and orbit line morphing when changing missions.
+- 2D Ground Track map tab plotting sinusoidal ground path over DSN tracking stations. Flat 2D canvas fallback if WebGL is unavailable.
+
+### 5. Rule-Based Diagnostic Engine & Physical Post-Mortem (`/src/review/rules.js`)
+- 10 pure diagnostic rules evaluating Payload Mass, Power Generation Margin, Eclipse Battery Depth-of-Discharge, Tsiolkovsky Delta-V, DSN Communications Link, Structural Chassis, Budget Cap, Redundancy, Thermal Radiator Balance, and Mission Fit.
+- Findings displayed in slide-out Advisor Drawer ordered by Blocker $\to$ Warning $\to$ Info, with plain-English explanations and one-click `Auto-Fix` buttons.
+- **Physical Post-Mortem Sequence:** Launching with blockers triggers a physically realistic failure mode at the exact mission phase (e.g., thrust-to-weight pad abort at T+0s, insertion burn depletion at T+9m40s, bus brownout at T+18m25s, eclipse battery freeze at T+58m30s, or silent telemetry at T+1h12m).
+
 - **Live Avionics Telemetry FPS Badge:** Monospace telemetry readout displaying live FPS, millisecond frame time, and active particle count (`60.0 FPS | 16.4ms | 7.5k P`).
 
