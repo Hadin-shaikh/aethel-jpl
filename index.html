@@ -4,255 +4,534 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AETHEL // JPL — Space Mission Engineering Simulator</title>
+  <title>AETHEL // JPL — Flight System Architect CAD-OPS V4.9</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <!-- ═══ LOADING SKELETON ═══ -->
   <div id="loading-skeleton">
-    <div class="loader-text">UPLINK ESTABLISHED<span class="blink">...</span> DECRYPTING NASA TELEMETRY</div>
+    <div class="loader-box">
+      <div class="loader-crest">◈ AETHEL // JPL ◈</div>
+      <div class="loader-text">UPLINK ESTABLISHED<span class="blink">...</span> DECRYPTING NASA TELEMETRY</div>
+      <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+    </div>
   </div>
 
   <!-- ═══ ERROR / CRASH BOUNDARY ═══ -->
   <div id="error-screen" class="hidden">
     <div class="error-box">
       <div class="error-icon">⚠</div>
-      <h2>SYSTEM FAULT DETECTED</h2>
-      <p id="error-msg">An unhandled exception has occurred in the avionics kernel.</p>
+      <h2>AVIONICS SYSTEM FAULT</h2>
+      <p id="error-msg">An unhandled exception has occurred in the flight kernel.</p>
       <button id="btn-reboot" onclick="location.reload()">⟳ REBOOT SYSTEM</button>
     </div>
   </div>
 
-  <!-- ═══ MAIN APPLICATION ═══ -->
+  <!-- ═══ MAIN APPLICATION SHELL (Light-Themed Mission Ops Frame) ═══ -->
   <div id="app" class="hidden">
 
-    <!-- ── TOP BAR / HUD HEADER ── -->
-    <header id="top-bar">
-      <div class="hud-left">
-        <span class="brand">AETHEL <span class="dim">// JPL</span></span>
-        <span class="version dim">CAD-OPS V4.9</span>
+    <!-- ── LEFT SIDEBAR (~200px) ── -->
+    <aside id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-title">AETHEL <span class="brand-accent">// JPL</span></div>
+        <div class="brand-sub">CAD-OPS V4.9</div>
       </div>
-      <div class="hud-center">
-        <span class="label dim">MET (MISSION ELAPSED)</span>
-        <span id="met-clock" class="met">T+000:00:00:00</span>
-      </div>
-      <div class="hud-right">
-        <button id="btn-audio" class="hud-btn" title="Toggle Audio [M]">AUDIO: <span id="audio-state">OFF</span> [M]</button>
-        <span class="dim hotkey-ref">KEYS: [1-3] [Q-T] [Space]</span>
-      </div>
-    </header>
 
-    <!-- ── MISSION & VEHICLE SELECT ── -->
-    <section id="mission-bar">
-      <div class="mission-select">
-        <span class="section-label">⊕ 01. TARGET TRAJECTORY PROFILE</span>
-        <div class="btn-group" id="mission-btns">
-          <button class="mission-btn active" data-mission="leo">LEO SAT<span class="dim sub">Earth Observation</span></button>
-          <button class="mission-btn" data-mission="lunar">LUNAR ROV<span class="dim sub">Artemis Relay</span></button>
-          <button class="mission-btn" data-mission="mars">MARS PROBE<span class="dim sub">Interplanetary</span></button>
-        </div>
+      <div class="sidebar-status">
+        <span class="status-label">SYS CONSOLE</span>
+        <span class="status-tag online">[DSN: ONLINE]</span>
       </div>
-      <div class="vehicle-select">
-        <span class="section-label">⊕ 02. LAUNCH VEHICLE CLASS</span>
-        <div class="btn-group" id="vehicle-btns">
-          <button class="vehicle-btn active" data-vehicle="falcon9">FALCON 9<span class="dim sub">\$67M Cost Base</span></button>
-          <button class="vehicle-btn" data-vehicle="falconheavy">FALCON HVY<span class="dim sub">\$97M Cost Base</span></button>
-          <button class="vehicle-btn" data-vehicle="sls">SLS BLOCK 1<span class="dim sub">\$2,100M Heavy</span></button>
-        </div>
-      </div>
-    </section>
 
-    <!-- ── TELEMETRY GAUGES ── -->
-    <section id="telemetry-bar">
-      <div class="gauge" id="gauge-mass">
-        <div class="gauge-header">
-          <span class="gauge-icon">⬡</span>
-          <span class="gauge-title">PAYLOAD MASS</span>
-          <span class="gauge-pct" id="mass-pct">0%</span>
-        </div>
-        <div class="gauge-values">
-          <span class="gauge-big" id="mass-val">0</span><span class="gauge-unit"> KG</span>
-          <span class="gauge-cap dim">MAX: <span id="mass-max">22,800</span> KG</span>
-        </div>
-        <div class="gauge-bar-track"><div class="gauge-bar-fill" id="mass-fill"></div></div>
-        <span class="gauge-status dim" id="mass-status">[NOMINAL]</span>
-      </div>
-      <div class="gauge" id="gauge-power">
-        <div class="gauge-header">
-          <span class="gauge-icon">⚡</span>
-          <span class="gauge-title">POWER MARGIN</span>
-          <span class="gauge-pct" id="power-pct">0 W</span>
-        </div>
-        <div class="gauge-values">
-          <span class="gauge-big" id="power-val">+0</span><span class="gauge-unit"> W NET</span>
-          <span class="gauge-cap dim">GEN: <span id="power-gen">0</span>W LOAD: <span id="power-load">0</span>W</span>
-        </div>
-        <div class="gauge-bar-track"><div class="gauge-bar-fill" id="power-fill"></div></div>
-        <span class="gauge-status dim" id="power-status">[NOMINAL]</span>
-      </div>
-      <div class="gauge" id="gauge-budget">
-        <div class="gauge-header">
-          <span class="gauge-icon">◈</span>
-          <span class="gauge-title">PROJECT BUDGET</span>
-          <span class="gauge-pct" id="budget-pct">0%</span>
-        </div>
-        <div class="gauge-values">
-          <span class="gauge-big">\$<span id="budget-val">0</span></span><span class="gauge-unit">M</span>
-          <span class="gauge-cap dim">CAP: \$<span id="budget-max">67</span>M</span>
-        </div>
-        <div class="gauge-bar-track"><div class="gauge-bar-fill" id="budget-fill"></div></div>
-        <span class="gauge-status dim" id="budget-status">[FUNDED]</span>
-      </div>
-      <div class="gauge" id="gauge-data">
-        <div class="gauge-header">
-          <span class="gauge-icon">◉</span>
-          <span class="gauge-title">DATA THROUGHPUT</span>
-          <span class="gauge-pct" id="data-pct">TGT: 10M</span>
-        </div>
-        <div class="gauge-values">
-          <span class="gauge-big" id="data-val">0</span><span class="gauge-unit"> Mbps</span>
-          <span class="gauge-cap dim">PAYLOAD: <span id="data-payload">0</span> Mbps</span>
-        </div>
-        <div class="gauge-bar-track"><div class="gauge-bar-fill" id="data-fill"></div></div>
-        <span class="gauge-status dim" id="data-status">[NOMINAL]</span>
-      </div>
-    </section>
-
-    <!-- ── MAIN WORKSPACE ── -->
-    <section id="workspace">
-      <!-- LEFT PANEL: Dual View -->
-      <div id="left-panel">
-        <div class="panel-header">
-          <span>ORBIT-HUD // TRAJECTORY</span>
-          <div class="view-tabs">
-            <button class="view-tab active" data-view="cad">⬡ CHASSIS CAD</button>
-            <button class="view-tab" data-view="trajectory">◎ ORBIT TRAJECTORY</button>
-          </div>
-        </div>
-        <!-- View A: Chassis CAD -->
-        <div id="view-cad" class="view-content active">
-          <svg id="sat-svg" viewBox="0 0 500 400" xmlns="http://www.w3.org/2000/svg">
-            <!-- Satellite body -->
-            <rect x="200" y="160" width="100" height="80" rx="4" fill="none" stroke="var(--accent-cyan)" stroke-width="1.5" opacity="0.9"/>
-            <!-- Solar panel left -->
-            <rect x="40" y="175" width="150" height="50" rx="2" fill="none" stroke="var(--accent-cyan)" stroke-width="1" opacity="0.5" class="solar-panel" id="svg-solar-l"/>
-            <line x1="190" y1="200" x2="200" y2="200" stroke="var(--accent-cyan)" stroke-width="1" opacity="0.5"/>
-            <!-- Solar panel right -->
-            <rect x="310" y="175" width="150" height="50" rx="2" fill="none" stroke="var(--accent-cyan)" stroke-width="1" opacity="0.5" class="solar-panel" id="svg-solar-r"/>
-            <line x1="300" y1="200" x2="310" y2="200" stroke="var(--accent-cyan)" stroke-width="1" opacity="0.5"/>
-            <!-- Antenna dish -->
-            <ellipse cx="250" cy="140" rx="30" ry="12" fill="none" stroke="var(--accent-cyan)" stroke-width="1" opacity="0.5" id="svg-antenna"/>
-            <line x1="250" y1="152" x2="250" y2="160" stroke="var(--accent-cyan)" stroke-width="1" opacity="0.5"/>
-            <!-- Thruster -->
-            <polygon points="230,240 270,240 260,270 240,270" fill="none" stroke="var(--accent-cyan)" stroke-width="1" opacity="0.5" id="svg-thruster"/>
-            <!-- Instrument bay -->
-            <rect x="215" y="185" width="70" height="30" rx="2" fill="none" stroke="var(--accent-cyan)" stroke-width="1" opacity="0.4" id="svg-instruments"/>
-            <!-- Leader lines container — dynamically populated -->
-            <g id="svg-leaders"></g>
+      <nav class="sidebar-nav">
+        <a href="#view-cad" class="nav-item active" id="nav-blueprint" data-nav="blueprint">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 3v3m0 12v3M3 12h3m12 0h3"/>
           </svg>
+          <span class="nav-text">01 CHASSIS BLUEPRINT</span>
+        </a>
+
+        <a href="#hud-card" class="nav-item" id="nav-trajectory" data-nav="trajectory">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <ellipse cx="12" cy="12" rx="9" ry="5" transform="rotate(-20 12 12)"/>
+            <circle cx="12" cy="12" r="2.5" fill="currentColor"/>
+          </svg>
+          <span class="nav-text">02 TRAJECTORY FLIGHT HUD</span>
+        </a>
+
+        <a href="#outfitter-card" class="nav-item" id="nav-dock" data-nav="dock">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <span class="nav-text">03 SUBSYSTEM DOCK</span>
+        </a>
+
+        <a href="#advisor-panel" class="nav-item" id="nav-advisor" data-nav="advisor">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <polyline points="4 17 10 11 4 5"/>
+            <line x1="12" y1="19" x2="20" y2="19"/>
+          </svg>
+          <span class="nav-text">04 CHIEF ADVISOR</span>
+        </a>
+
+        <a href="#btn-launch" class="nav-item" id="nav-launch" data-nav="launch">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+            <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+            <path d="M9 12l2 2"/>
+          </svg>
+          <span class="nav-text">05 LAUNCH SEQUENCER</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="telemetry-item">
+          <span class="tel-label">DOWNLINK RATE</span>
+          <span class="tel-value" id="side-downlink">84.2 MB/S</span>
         </div>
-        <!-- View B: Trajectory -->
-        <div id="view-trajectory" class="view-content">
-          <div class="traj-canvas" id="traj-canvas">
-            <!-- Earth -->
-            <div class="traj-body earth" id="traj-earth">
-              <span>EARTH</span>
+        <div class="telemetry-item">
+          <span class="tel-label">DOPPLER RESIDUAL</span>
+          <span class="tel-value" id="side-doppler">+0.042 Hz</span>
+        </div>
+        <div class="telemetry-item">
+          <span class="tel-label">GROUND STATION</span>
+          <span class="tel-value">NODE GOLDSTONE</span>
+        </div>
+        <button id="btn-sources" class="sidebar-link-btn">SOURCES &amp; CREDITS</button>
+      </div>
+    </aside>
+
+    <!-- ── MAIN CONTENT WORKSPACE ── -->
+    <main id="main-content">
+
+      <!-- ── TOP HUD BAR ── -->
+      <header id="top-bar">
+        <div class="hud-stat-group">
+          <span class="hud-stat-label">MET (MISSION ELAPSED)</span>
+          <span class="hud-stat-val mono" id="met-clock">T+142:08:24:19</span>
+        </div>
+
+        <div class="hud-stat-group">
+          <span class="hud-stat-label">UTC REFERENCE</span>
+          <span class="hud-stat-val mono" id="utc-clock">2026-318 // 19:00:00.000</span>
+        </div>
+
+        <div class="hud-stat-group">
+          <span class="hud-stat-label">ORBIT PARAMETERS</span>
+          <span class="hud-stat-val mono" id="hud-orbit">AP: 500.0km // PE: 500.0km | INC: 51.6°</span>
+        </div>
+
+        <div class="hud-actions">
+          <button id="btn-audio" class="hud-action-btn" title="Toggle Audio [M]">
+            <span class="speaker-icon">🔊</span> AUDIO: <span id="audio-state">OFF</span> [M]
+          </button>
+          <span class="hotkeys-hint">KEYS: [1-3] Orbit | [Q-T] Dock | [Spc] Go</span>
+          <span class="uplink-tag"><span class="signal-dot"></span> UPLINK LOCK // DSN-14</span>
+          <span class="eirp-tag">EIRP: 64.2 dBW</span>
+        </div>
+      </header>
+
+      <!-- ── SUB-HEADER BAR ── -->
+      <div id="sub-header">
+        <span class="sub-item">FLIGHT SYSTEM ARCHITECT // V5.4-PROD</span>
+        <span class="sub-sep">│</span>
+        <span class="sub-item">BUS: MIL-STD-1553B</span>
+        <span class="sub-sep">│</span>
+        <span class="sub-item">SYNC: PHOENIX-DSN-PRIMARY</span>
+        <span class="sub-sep">│</span>
+        <span class="sub-item">MISSION ID: <span id="mission-id-badge" class="mono">M-LEO-500K</span></span>
+        <span class="sub-sep">│</span>
+        <span class="sub-item">SIM RATE: 120 HZ REALTIME</span>
+        <span class="sub-sep">│</span>
+        <span class="sub-item cipher"><span class="lock-icon">🔒</span> CIPHER SECURE</span>
+      </div>
+
+      <!-- ── SELECTOR SECTION (01 Trajectory & 02 Launch Vehicle) ── -->
+      <section id="selector-section">
+        <!-- 01 Target Trajectory Profile -->
+        <div class="selector-card">
+          <div class="selector-header">
+            <span class="selector-title">⊕ 01. TARGET TRAJECTORY PROFILE</span>
+            <span class="selector-req" id="trajectory-req">REQ: 500KM CIRCULAR // INC 51.6°</span>
+          </div>
+          <div class="selector-buttons" id="mission-btns">
+            <button class="choice-btn active" data-mission="leo">
+              <span class="choice-name">LEO SAT</span>
+              <span class="choice-stat">500 KM</span>
+              <span class="choice-desc">Earth Observation</span>
+            </button>
+            <button class="choice-btn" data-mission="lunar">
+              <span class="choice-name">LUNAR ROV</span>
+              <span class="choice-stat">TLI BURN</span>
+              <span class="choice-desc">Artemis Relay</span>
+            </button>
+            <button class="choice-btn" data-mission="mars">
+              <span class="choice-name">MARS PROBE</span>
+              <span class="choice-stat">HOHMANN</span>
+              <span class="choice-desc">Interplanetary</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 02 Launch Vehicle Class -->
+        <div class="selector-card">
+          <div class="selector-header">
+            <span class="selector-title">⊕ 02. LAUNCH VEHICLE CLASS</span>
+            <span class="selector-req" id="vehicle-cap-label">CAP: 22,800 KG // BASE: $67M</span>
+          </div>
+          <div class="selector-buttons" id="vehicle-btns">
+            <button class="choice-btn active" data-vehicle="falcon9">
+              <span class="choice-name">FALCON 9</span>
+              <span class="choice-stat">22.8T</span>
+              <span class="choice-desc">$67M Cost Base</span>
+            </button>
+            <button class="choice-btn" data-vehicle="falconheavy">
+              <span class="choice-name">FALCON HVY</span>
+              <span class="choice-stat">63.8T</span>
+              <span class="choice-desc">$97M Cost Base</span>
+            </button>
+            <button class="choice-btn" data-vehicle="sls">
+              <span class="choice-name">SLS BLOCK 1</span>
+              <span class="choice-stat">95.0T</span>
+              <span class="choice-desc">$2,100M Heavy</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── TELEMETRY TILES (4 CARDS) ── -->
+      <section id="telemetry-grid">
+        <!-- Mass -->
+        <div class="metric-card" id="gauge-mass">
+          <div class="metric-header">
+            <span class="metric-icon">⬡</span>
+            <span class="metric-title">PAYLOAD MASS</span>
+            <span class="metric-pct" id="mass-pct">2.0%</span>
+          </div>
+          <div class="metric-body">
+            <span class="metric-value mono" id="mass-val">460</span>
+            <span class="metric-unit">KG</span>
+            <span class="metric-sub" id="mass-max-text">MAX: 22,800 KG</span>
+          </div>
+          <div class="metric-bar-track">
+            <div class="metric-bar-fill" id="mass-fill"></div>
+          </div>
+          <div class="metric-footer">
+            <span class="metric-secondary">STRUCTURAL MARGIN: <span id="mass-margin">98.0%</span></span>
+            <span class="metric-chip nominal" id="mass-status">[NOMINAL]</span>
+          </div>
+        </div>
+
+        <!-- Power -->
+        <div class="metric-card" id="gauge-power">
+          <div class="metric-header">
+            <span class="metric-icon">⚡</span>
+            <span class="metric-title">POWER MARGIN</span>
+            <span class="metric-pct" id="power-pct">+165 W</span>
+          </div>
+          <div class="metric-body">
+            <span class="metric-value mono" id="power-val">+165</span>
+            <span class="metric-unit">W NET</span>
+            <span class="metric-sub" id="power-sub-text">GEN: 450W | LOAD: 285W</span>
+          </div>
+          <div class="metric-bar-track">
+            <div class="metric-bar-fill" id="power-fill"></div>
+          </div>
+          <div class="metric-footer">
+            <span class="metric-secondary">BATT BUFFER: <span id="batt-buffer">98.4 Wh</span></span>
+            <span class="metric-chip surplus" id="power-status">[SURPLUS]</span>
+          </div>
+        </div>
+
+        <!-- Budget -->
+        <div class="metric-card" id="gauge-budget">
+          <div class="metric-header">
+            <span class="metric-icon">◈</span>
+            <span class="metric-title">PROJECT BUDGET</span>
+            <span class="metric-pct" id="budget-pct">76.8%</span>
+          </div>
+          <div class="metric-body">
+            <span class="metric-value mono" id="budget-val">$192.0M</span>
+            <span class="metric-sub" id="budget-sub-text">CAP: $250.0M</span>
+          </div>
+          <div class="metric-bar-track">
+            <div class="metric-bar-fill" id="budget-fill"></div>
+          </div>
+          <div class="metric-footer">
+            <span class="metric-secondary">RESERVE: <span id="budget-reserve">$58.0M</span></span>
+            <span class="metric-chip nominal" id="budget-status">[FUNDED]</span>
+          </div>
+        </div>
+
+        <!-- Data -->
+        <div class="metric-card" id="gauge-data">
+          <div class="metric-header">
+            <span class="metric-icon">◉</span>
+            <span class="metric-title">DATA THROUGHPUT</span>
+            <span class="metric-pct" id="data-target-text">TGT: 10M</span>
+          </div>
+          <div class="metric-body">
+            <span class="metric-value mono" id="data-val">62.0</span>
+            <span class="metric-unit">Mbps</span>
+            <span class="metric-sub" id="data-sub-text">PAYLOAD: 10.0 Mbps</span>
+          </div>
+          <div class="metric-bar-track">
+            <div class="metric-bar-fill" id="data-fill"></div>
+          </div>
+          <div class="metric-footer">
+            <span class="metric-secondary">DSN LINK MARGIN: <span id="data-margin">+23.4 dB</span></span>
+            <span class="metric-chip nominal" id="data-status">[NOMINAL LINK]</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── MIDDLE SECTION: LEFT (HUD & CONIC) vs RIGHT (OUTFITTER) ── -->
+      <section id="middle-section">
+
+        <!-- LEFT COLUMN: Dual HUD & Mathematical Conic -->
+        <div class="middle-left-col">
+
+          <!-- Card 1: Orbit HUD / Chassis CAD -->
+          <div class="hud-card" id="hud-card">
+            <div class="hud-card-header">
+              <div class="hud-title-wrap">
+                <span class="hud-tag" id="hud-conic-tag">ORBIT-HUD // TRAJECTORY 02</span>
+                <span class="hud-main-title" id="hud-main-title">LEO ORBITAL INSERTION HUD</span>
+              </div>
+              <div class="hud-meta" id="hud-meta-text">CONIC: ORBIT-04 | TOF: 94.6 min | dV_REQ: 150 m/s</div>
+              <div class="hud-controls">
+                <div class="view-switch-btns">
+                  <button class="view-tab-btn" data-view="cad">⬡ CHASSIS CAD</button>
+                  <button class="view-tab-btn active" data-view="trajectory">◎ ORBIT TRAJECTORY</button>
+                </div>
+                <div class="warp-btns">
+                  <button class="warp-btn active" data-warp="1">1x</button>
+                  <button class="warp-btn" data-warp="100">100x</button>
+                  <button class="warp-btn" data-warp="10000">10k x</button>
+                </div>
+              </div>
             </div>
-            <!-- Orbit path (dynamically styled) -->
-            <svg id="traj-svg" viewBox="0 0 600 350" xmlns="http://www.w3.org/2000/svg">
-              <ellipse id="orbit-path" cx="300" cy="175" rx="120" ry="120" fill="none" stroke="var(--accent-cyan)" stroke-width="1" stroke-dasharray="8 4" opacity="0.6"/>
-              <!-- Spacecraft dot -->
-              <circle id="orbit-craft" cx="420" cy="175" r="5" fill="var(--accent-cyan)"/>
-              <!-- Moon / Mars target (hidden by default) -->
-              <circle id="traj-target" cx="0" cy="0" r="8" fill="none" stroke="var(--text-main)" stroke-width="1" opacity="0" class="traj-target-body"/>
-              <text id="traj-target-label" x="0" y="0" fill="var(--text-main)" font-size="10" opacity="0"></text>
-              <!-- Umbra shadow wedge -->
-              <path id="umbra-shadow" d="" fill="rgba(0,0,0,0.5)" opacity="0"/>
-            </svg>
-            <!-- Node labels -->
-            <div class="traj-nodes" id="traj-nodes"></div>
+
+            <!-- Viewport Container (Dark Card) -->
+            <div class="hud-viewport">
+
+              <!-- VIEW A: ORBIT TRAJECTORY TACTICAL HUD -->
+              <div id="view-trajectory" class="view-panel active">
+                <canvas id="orbit-canvas" width="620" height="280"></canvas>
+
+                <!-- Targeting Overlay Box (Top Left) -->
+                <div class="hud-overlay-box top-left">
+                  <div class="overlay-row"><span class="dim">TARGET:</span> <span id="over-target" class="mono">LEO 500KM</span></div>
+                  <div class="overlay-row"><span class="dim">PERIAPSIS:</span> <span id="over-peri" class="mono">500.0 km</span></div>
+                  <div class="overlay-row"><span class="dim">VELOCITY:</span> <span id="over-vel" class="mono">7.613 km/s</span></div>
+                </div>
+
+                <!-- 8-Ball Attitude Indicator / Navball Widget (Top Right) -->
+                <div class="navball-widget">
+                  <div class="navball-title">NAVBALL 8-BALL</div>
+                  <div class="navball-container">
+                    <canvas id="navball-canvas" width="76" height="76"></canvas>
+                    <div class="navball-reticle">━ ⌖ ━</div>
+                  </div>
+                  <div class="navball-readout" id="navball-readout">PITCH: +12.4° | ROLL: +00.0°</div>
+                </div>
+              </div>
+
+              <!-- VIEW B: CHASSIS CAD SCHEMATIC -->
+              <div id="view-cad" class="view-panel">
+                <svg id="sat-svg" viewBox="0 0 540 280" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Background grid -->
+                  <defs>
+                    <pattern id="cadGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                      <line x1="0" y1="0" x2="20" y2="0" stroke="#1E2A38" stroke-width="0.5"/>
+                      <line x1="0" y1="0" x2="0" y2="20" stroke="#1E2A38" stroke-width="0.5"/>
+                    </pattern>
+                  </defs>
+                  <rect width="100%" height="100%" fill="#070B12"/>
+                  <rect width="100%" height="100%" fill="url(#cadGrid)" opacity="0.6"/>
+
+                  <!-- Central Spacecraft Chassis -->
+                  <rect x="220" y="105" width="100" height="80" rx="4" fill="#0C1322" stroke="var(--accent-cyan)" stroke-width="1.8"/>
+                  <rect x="235" y="120" width="70" height="50" rx="2" fill="none" stroke="#2563EB" stroke-width="1" stroke-dasharray="3 3"/>
+                  <text x="270" y="148" fill="var(--accent-cyan)" font-size="9" text-anchor="middle" font-family="'JetBrains Mono', monospace">BUS CORE</text>
+
+                  <!-- Solar Panel Left -->
+                  <g id="svg-solar-l" class="cad-module">
+                    <rect x="50" y="120" width="150" height="50" rx="2" fill="#0C1B2A" stroke="var(--accent-cyan)" stroke-width="1.2" opacity="0.6"/>
+                    <line x1="75" y1="120" x2="75" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
+                    <line x1="100" y1="120" x2="100" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
+                    <line x1="125" y1="120" x2="125" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
+                    <line x1="150" y1="120" x2="150" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
+                    <line x1="175" y1="120" x2="175" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
+                    <line x1="200" y1="145" x2="220" y2="145" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+                  </g>
+
+                  <!-- Solar Panel Right -->
+                  <g id="svg-solar-r" class="cad-module">
+                    <rect x="340" y="120" width="150" height="50" rx="2" fill="#0C1B2A" stroke="var(--accent-cyan)" stroke-width="1.2" opacity="0.6"/>
+                    <line x1="365" y1="120" x2="365" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
+                    <line x1="390" y1="120" x2="390" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
+                    <line x1="415" y1="120" x2="415" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
+                    <line x1="440" y1="120" x2="440" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
+                    <line x1="465" y1="120" x2="465" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
+                    <line x1="320" y1="145" x2="340" y2="145" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+                  </g>
+
+                  <!-- Antenna Dish (Top) -->
+                  <g id="svg-antenna" class="cad-module">
+                    <path d="M 235 90 A 35 15 0 0 1 305 90" fill="none" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+                    <line x1="270" y1="90" x2="270" y2="105" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+                    <circle cx="270" cy="80" r="2.5" fill="var(--accent-cyan)"/>
+                    <line x1="270" y1="80" x2="270" y2="90" stroke="var(--accent-cyan)" stroke-width="1"/>
+                  </g>
+
+                  <!-- Thruster Engine Nozzle (Bottom) -->
+                  <g id="svg-thruster" class="cad-module">
+                    <polygon points="255,185 285,185 292,215 248,215" fill="#0C1322" stroke="var(--accent-cyan)" stroke-width="1.4"/>
+                    <line x1="250" y1="215" x2="290" y2="215" stroke="var(--accent-cyan)" stroke-width="1"/>
+                  </g>
+
+                  <!-- Instrument Payload Bay -->
+                  <g id="svg-instruments" class="cad-module">
+                    <circle cx="270" cy="145" r="14" fill="#0E2238" stroke="var(--accent-cyan)" stroke-width="1.2"/>
+                    <circle cx="270" cy="145" r="5" fill="var(--accent-cyan)"/>
+                  </g>
+
+                  <!-- Dynamic leader lines and text tags -->
+                  <g id="svg-leaders"></g>
+                </svg>
+              </div>
+
+            </div>
           </div>
-          <div class="traj-info">
-            <span class="dim">PROPULSION ΔV: <strong id="traj-dv">150</strong> m/s</span>
-            <span class="dim">│ TWR: <strong id="traj-twr">0.98</strong></span>
-            <span class="dim">│ ORBIT PERIOD: <strong id="traj-period">94.6</strong> min</span>
+
+          <!-- Card 2: Mathematical Predicted Trajectory Conic (below HUD) -->
+          <div class="conic-card">
+            <div class="conic-card-header">
+              <div class="conic-title-wrap">
+                <span class="conic-icon">⬡</span>
+                <span class="conic-title">MATHEMATICAL PREDICTED TRAJECTORY CONIC</span>
+              </div>
+              <div class="conic-meta">MANEUVER NODES: 02 │ PROPAGATOR: RUNGE-KUTTA 4</div>
+            </div>
+
+            <div class="conic-canvas-wrap">
+              <canvas id="conic-canvas" width="620" height="150"></canvas>
+            </div>
+
+            <div class="conic-footer">
+              <div class="conic-stat">PROPULSION dV: <strong id="traj-dv">150</strong> m/s</div>
+              <div class="conic-stat">TWR: <strong id="traj-twr">0.98</strong></div>
+              <div class="conic-stat">ORBIT PERIOD: <strong id="traj-period">94.6</strong> min</div>
+              <div class="conic-target">TARGET VECTOR: <span id="traj-target-label" class="mono">LEO SATELLITE FLIGHT PATH</span></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: Payload Outfitter -->
+        <div class="middle-right-col">
+          <div class="outfitter-card" id="outfitter-card">
+            <div class="outfitter-header">
+              <div class="outfitter-title-wrap">
+                <span class="outfitter-icon">⬡</span>
+                <span class="outfitter-title">PAYLOAD OUTFITTER</span>
+              </div>
+              <span class="outfitter-count" id="equipped-count">5 SUBSYSTEMS</span>
+            </div>
+
+            <!-- Category Tabs -->
+            <div class="outfitter-tabs" id="subsystem-tabs">
+              <button class="out-tab active" data-cat="power">PWR</button>
+              <button class="out-tab" data-cat="comms">COMM</button>
+              <button class="out-tab" data-cat="instruments">INST</button>
+              <button class="out-tab" data-cat="propulsion">PROP</button>
+              <button class="out-tab" data-cat="chassis">CHAS</button>
+            </div>
+
+            <!-- Subsystem Cards List -->
+            <div id="subsystem-outfitter" class="outfitter-list"></div>
+
+            <div class="outfitter-footer">
+              <span class="footer-modules-tag">TOTAL ACTIVE PAYLOAD MODULES:</span>
+              <span class="footer-modules-count" id="footer-modules-count">5 MODULES EQUIPPED</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- RIGHT PANEL: Subsystem Outfitter -->
-      <div id="right-panel">
-        <div class="panel-header">
-          <span>⬡ PAYLOAD OUTFITTER</span>
-          <span class="dim" id="equipped-count">0 SUBSYSTEMS</span>
-        </div>
-        <div class="subsystem-tabs" id="subsystem-tabs">
-          <button class="sub-tab active" data-cat="power">PWR</button>
-          <button class="sub-tab" data-cat="comms">COMM</button>
-          <button class="sub-tab" data-cat="instruments">INST</button>
-          <button class="sub-tab" data-cat="propulsion">PROP</button>
-          <button class="sub-tab" data-cat="chassis">CHAS</button>
-        </div>
-        <div id="subsystem-outfitter"></div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ── BOTTOM: Chief Advisor + Launch ── -->
-    <section id="bottom-bar">
-      <div id="advisor-panel">
-        <div class="panel-header">
-          <span>◉ CHIEF AVIONICS ADVISOR CONSOLE</span>
-          <span class="dim">AUTONOMOUS</span>
+      <!-- ── BOTTOM ROW: Chief Advisor Console + Stage-0 Sequencer ── -->
+      <section id="bottom-section">
+        <!-- Chief Advisor Console -->
+        <div id="advisor-panel">
+          <div class="advisor-header">
+            <div class="advisor-title-wrap">
+              <span class="advisor-icon">◉</span>
+              <span class="advisor-title">CHIEF AVIONICS ADVISOR CONSOLE</span>
+            </div>
+            <span class="advisor-audit-tag">AUTONOMOUS AUDIT ACTIONS</span>
+          </div>
+          <div id="advisor-log" class="advisor-log mono"></div>
         </div>
-        <div id="advisor-log"></div>
-      </div>
-      <button id="btn-launch" disabled>
-        <span class="launch-label">STAGE-0 LAUNCH SEQUENCER</span>
-        <span class="launch-sub dim">ALL SYSTEMS NOMINAL REQUIRED</span>
-      </button>
-    </section>
 
-    <!-- ── BOTTOM STATUS BAR ── -->
-    <footer id="status-bar">
-      <span class="dim">DOWNLINK RATE: <span id="stat-downlink">0</span> MB/s</span>
-      <span class="dim">│ TOTAL ACTIVE PAYLOAD MODULES: <span id="stat-modules">0</span></span>
-      <span class="dim">│ NODE: GOLDSTONE</span>
-      <span class="dim">│ <button id="btn-sources" class="link-btn">SOURCES &amp; CREDITS</button></span>
-    </footer>
+        <!-- Stage-0 Launch Sequencer -->
+        <div id="sequencer-panel">
+          <div class="sequencer-check-label">PRIMARY DIRECTIVE CHECK</div>
+          <button id="btn-launch" class="btn-launch" disabled>
+            <span class="launch-title">STAGE-0 LAUNCH SEQUENCER</span>
+            <span class="launch-sub" id="launch-sub-status">ALL SYSTEMS NOMINAL REQUIRED</span>
+          </button>
+        </div>
+      </section>
+
+    </main>
 
   </div>
 
-  <!-- ═══ SOURCES MODAL ═══ -->
+  <!-- ═══ FULLSCREEN LAUNCH COUNTDOWN OVERLAY ═══ -->
+  <div id="launch-overlay" class="hidden">
+    <div class="launch-modal">
+      <div class="launch-tag">STAGE-0 TERMINAL COUNTDOWN</div>
+      <div class="launch-big-count" id="countdown-text">T-10</div>
+      <div class="launch-target-desc" id="launch-target-desc">IGNITION SEQUENCE INITIATED</div>
+      <div class="launch-progress-track"><div class="launch-progress-fill" id="launch-progress-fill"></div></div>
+    </div>
+  </div>
+
+  <!-- ═══ SOURCES & CREDITS MODAL ═══ -->
   <div id="sources-modal" class="modal-overlay hidden">
     <div class="modal-box">
       <div class="modal-header">
-        <span>◈ DATA SOURCES &amp; CREDITS</span>
-        <button id="btn-close-sources" class="hud-btn">✕ CLOSE</button>
+        <span>◈ DATA SOURCES &amp; TECHNICAL CREDITS</span>
+        <button id="btn-close-sources" class="close-btn">✕</button>
       </div>
       <div class="modal-body">
-        <h3>NASA / JPL Data Sources</h3>
+        <h3>NASA &amp; JPL Technical Sources</h3>
         <ul>
-          <li><strong>NASA Launch Services Program (LSP)</strong> — Launch vehicle performance data<br>
+          <li><strong>NASA Launch Services Program (LSP)</strong> — Vehicle mass to orbit and mission cost benchmarks.<br>
             <a href="https://www.nasa.gov/launch-services-program" target="_blank" rel="noopener">nasa.gov/launch-services-program</a></li>
-          <li><strong>SpaceX Falcon 9 &amp; Falcon Heavy</strong> — Payload capacity and cost references<br>
+          <li><strong>SpaceX Falcon 9 &amp; Falcon Heavy</strong> — Payload user's guide, fairing capacity, and orbital delivery.<br>
             <a href="https://www.spacex.com/vehicles/falcon-9/" target="_blank" rel="noopener">spacex.com/vehicles/falcon-9</a></li>
-          <li><strong>NASA SLS Program</strong> — Space Launch System Block 1 specifications<br>
+          <li><strong>NASA SLS Program</strong> — Space Launch System Block 1 lift capability.<br>
             <a href="https://www.nasa.gov/exploration/systems/sls/index.html" target="_blank" rel="noopener">nasa.gov/exploration/systems/sls</a></li>
-          <li><strong>NASA JPL Solar System Dynamics</strong> — Orbital mechanics parameters<br>
+          <li><strong>NASA JPL Solar System Dynamics (SSD)</strong> — Astrodynamics, orbital propagation, and conic solutions.<br>
             <a href="https://ssd.jpl.nasa.gov/" target="_blank" rel="noopener">ssd.jpl.nasa.gov</a></li>
-          <li><strong>NASA Glenn Research Center — NEXT-C Ion Thruster</strong><br>
+          <li><strong>NASA Glenn Research Center — NEXT-C Ion Propulsion</strong><br>
             <a href="https://www1.grc.nasa.gov/space/sep/next-c/" target="_blank" rel="noopener">grc.nasa.gov/space/sep/next-c</a></li>
-          <li><strong>JPL Mars Exploration — MMRTG (RTG)</strong><br>
+          <li><strong>NASA JPL Mars Exploration — MMRTG Power System</strong><br>
             <a href="https://mars.nasa.gov/msl/spacecraft/rover/power/" target="_blank" rel="noopener">mars.nasa.gov/msl/spacecraft/rover/power</a></li>
-          <li><strong>NASA InSight — UltraFlex Solar Arrays</strong><br>
+          <li><strong>NASA InSight Mission — UltraFlex High Specific Power Solar Arrays</strong><br>
             <a href="https://mars.nasa.gov/insight/spacecraft/about-the-lander/" target="_blank" rel="noopener">mars.nasa.gov/insight/spacecraft</a></li>
-          <li><strong>NASA Deep Space Network (DSN)</strong> — Ka-Band antenna parameters<br>
+          <li><strong>NASA Deep Space Network (DSN)</strong> — Telecom link margin, Ka-Band dish downlinks.<br>
             <a href="https://www.jpl.nasa.gov/missions/dsn" target="_blank" rel="noopener">jpl.nasa.gov/missions/dsn</a></li>
         </ul>
-        <h3>AI Use Statement</h3>
-        <p>Code written with AI assistance (Antigravity / Claude) and reviewed, tested, and iterated by the author. All NASA data was verified against public sources listed above.</p>
-        <h3>Team</h3>
+        <h3>AI-Assistance Statement</h3>
+        <p>UI wireframe generated with v0.dev. Code written with AI assistance and reviewed/tested by the author (Shaikh Mo. Hadin, team Rust Planet). All launch vehicle capacities, power margins, and astrodynamic parameters were verified against authentic NASA/JPL engineering documents.</p>
+        <h3>Hackathon Entry</h3>
         <p><strong>Shaikh Mo. Hadin</strong> — Team Rust Planet<br>NASA Space Apps Challenge 2026</p>
       </div>
     </div>
