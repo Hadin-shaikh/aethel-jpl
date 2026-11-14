@@ -1,82 +1,94 @@
 /* ═══════════════════════════════════════════════════════════════
    AETHEL // JPL — Space Mission Engineering Simulator
-   Core Avionics & Telemetry Engine — Vanilla ES6 State Machine
+   Hierarchical State Machine, RK4 Astrodynamics, Math & UX Engine
    ═══════════════════════════════════════════════════════════════ */
 
 'use strict';
 
-// ── NASA LAUNCH SERVICES PROGRAM SPECIFICATIONS ──
+// ── NASA LAUNCH SERVICES PROGRAM FLEET SPECIFICATIONS ──
 const VEHICLES = {
   falcon9: {
+    id: 'falcon9',
     name: 'Falcon 9',
     mass: 22800,
     cost: 67,
-    id: 'falcon9',
-    desc: 'Cost-optimized reusable booster'
+    maxPayloadKg: 22800,
+    desc: 'Cost-optimized reusable two-stage booster'
   },
   falconheavy: {
+    id: 'falconheavy',
     name: 'Falcon Heavy',
     mass: 63800,
     cost: 97,
-    id: 'falconheavy',
-    desc: 'Tri-core heavy lift launcher'
+    maxPayloadKg: 63800,
+    desc: 'Heavy-lift tri-core configuration with cross-feed'
   },
   sls: {
+    id: 'sls',
     name: 'SLS Block 1',
     mass: 95000,
     cost: 2100,
-    id: 'sls',
-    desc: 'NASA deep space exploration vehicle'
+    maxPayloadKg: 95000,
+    desc: 'NASA deep space exploration super heavy vehicle'
   }
 };
 
-// ── ASTRODYNAMICS MISSION PROFILES ──
+// ── ASTRODYNAMICS MISSION SPECIFICATIONS ──
 const MISSIONS = {
   leo: {
+    id: 'leo',
     name: 'LEO Satellite',
-    type: 'leo',
-    targetData: 10,
-    targetVel: '7.613 km/s',
-    periapsis: '500.0 km',
-    apoapsis: '500.0 km',
-    inc: '51.6°',
+    sub: '500 KM CIRCULAR',
+    periapsisKm: 500,
+    apoapsisKm: 500,
+    r1Km: 6871, // 6371 + 500
+    r2Km: 6871,
+    semiMajorAxisKm: 6871,
+    inclination: '51.6°',
+    targetVelKms: 7.613,
     dvReq: 150,
+    targetDataMbps: 10,
     periodMin: 94.6,
-    code: 'M-LEO-500K',
-    reqText: 'REQ: 500KM CIRCULAR // INC 51.6°',
-    vector: 'LEO SATELLITE FLIGHT PATH'
+    vectorDesc: 'LEO SATELLITE FLIGHT PATH',
+    previewConicTag: 'LEO 500KM CIRCULAR'
   },
   lunar: {
-    name: 'Lunar Rover',
-    type: 'lunar',
-    targetData: 5,
-    targetVel: '10.920 km/s',
-    periapsis: '185.0 km',
-    apoapsis: '384,400 km',
-    inc: '28.5°',
+    id: 'lunar',
+    name: 'Lunar Rover & Relay',
+    sub: 'CISLUNAR TRANSFER',
+    periapsisKm: 185,
+    apoapsisKm: 384400,
+    r1Km: 6556,
+    r2Km: 384400,
+    semiMajorAxisKm: 195478,
+    inclination: '28.5°',
+    targetVelKms: 10.920,
     dvReq: 3100,
+    targetDataMbps: 5,
     periodMin: 655,
-    code: 'M-CISLUNAR-ARTEMIS',
-    reqText: 'REQ: CISLUNAR FREE-RETURN // INC 28.5°',
-    vector: 'TRANSLUNAR INJECTION CONIC'
+    vectorDesc: 'TRANSLUNAR INJECTION CONIC',
+    previewConicTag: 'CISLUNAR FREE-RETURN'
   },
   mars: {
-    name: 'Mars Probe',
-    type: 'mars',
-    targetData: 2,
-    targetVel: '11.570 km/s',
-    periapsis: '250.0 km',
-    apoapsis: 'HOHMANN AP',
-    inc: '1.85°',
+    id: 'mars',
+    name: 'Mars Exploration Probe',
+    sub: 'HOHMANN CRUISE',
+    periapsisKm: 250,
+    apoapsisKm: 227900000,
+    r1Km: 149600000, // 1 AU
+    r2Km: 227900000, // 1.52 AU
+    semiMajorAxisKm: 188750000,
+    inclination: '1.85°',
+    targetVelKms: 11.570,
     dvReq: 5600,
+    targetDataMbps: 2,
     periodMin: 372960,
-    code: 'M-INTERPLANETARY-MARS',
-    reqText: 'REQ: HOHMANN TRANSFER // ECLIPSE BUFFER',
-    vector: 'HELIOCENTRIC MARS TRAJECTORY'
+    vectorDesc: 'HELIOCENTRIC MARS TRAJECTORY',
+    previewConicTag: 'HOHMANN TRANSFER ELLIPSE'
   }
 };
 
-// ── REALISTIC NASA/JPL SUBSYSTEM DATABASE ──
+// ── REALISTIC COMPONENT DATABASE ──
 const SUBSYSTEMS = {
   power: {
     label: 'Power Generation',
@@ -84,32 +96,32 @@ const SUBSYSTEMS = {
       {
         id: 'solar-ultraflex',
         name: 'UltraFlex Dual Solar Wings',
-        desc: 'Gallium Arsenide flexible arrays (150 W/kg) with accordion deployment.',
+        desc: 'Gallium Arsenide flexible arrays (150 W/kg) with accordion mast.',
         mass: 120,
         power: 450,
         cost: 18,
         data: 0,
-        svgTarget: 'solar'
+        svgPartId: 'cad-solar'
       },
       {
         id: 'rtg-plutonium',
         name: 'NextGen Plutonium-238 RTG',
-        desc: 'Stirling radioisotope generator. Continuous power unaffected by eclipse.',
+        desc: 'Stirling radioisotope generator. Continuous power independent of shadow.',
         mass: 380,
         power: 350,
         cost: 95,
         data: 0,
-        svgTarget: 'thruster'
+        svgPartId: 'cad-thruster'
       },
       {
         id: 'battery-liion',
         name: 'Li-Ion Battery Buffer (40 Ah)',
-        desc: 'High-density cells for eclipse buffering with integrated thermal jacket.',
+        desc: 'High-density cells for eclipse buffering with automated thermal jacket.',
         mass: 45,
         power: 60,
         cost: 5,
         data: 0,
-        svgTarget: null
+        svgPartId: null
       }
     ]
   },
@@ -124,7 +136,7 @@ const SUBSYSTEMS = {
         power: -100,
         cost: 22,
         data: 80,
-        svgTarget: 'antenna'
+        svgPartId: 'cad-antenna'
       },
       {
         id: 'antenna-sband',
@@ -134,7 +146,7 @@ const SUBSYSTEMS = {
         power: -15,
         cost: 3,
         data: 5,
-        svgTarget: 'antenna'
+        svgPartId: 'cad-antenna'
       },
       {
         id: 'antenna-xband',
@@ -144,7 +156,7 @@ const SUBSYSTEMS = {
         power: -50,
         cost: 12,
         data: 40,
-        svgTarget: 'antenna'
+        svgPartId: 'cad-antenna'
       }
     ]
   },
@@ -159,7 +171,7 @@ const SUBSYSTEMS = {
         power: -90,
         cost: 45,
         data: -15,
-        svgTarget: 'instruments'
+        svgPartId: 'cad-instrument'
       },
       {
         id: 'spectrometer-mass',
@@ -169,17 +181,17 @@ const SUBSYSTEMS = {
         power: -55,
         cost: 30,
         data: -3,
-        svgTarget: 'instruments'
+        svgPartId: 'cad-instrument'
       },
       {
         id: 'radar-sar',
         name: 'Synthetic Aperture Radar (SAR)',
-        desc: 'C-band all-weather radar with 5m resolution for planetary topographic mapping.',
+        desc: 'C-band all-weather radar with 5m resolution for planetary surface mapping.',
         mass: 150,
         power: -200,
         cost: 60,
         data: -25,
-        svgTarget: 'instruments'
+        svgPartId: 'cad-instrument'
       }
     ]
   },
@@ -194,7 +206,9 @@ const SUBSYSTEMS = {
         power: -40,
         cost: 10,
         data: 0,
-        svgTarget: 'thruster'
+        thrustN: 15,
+        ispS: 68,
+        svgPartId: 'cad-thruster'
       },
       {
         id: 'thruster-biprop',
@@ -204,7 +218,9 @@ const SUBSYSTEMS = {
         power: -20,
         cost: 25,
         data: 0,
-        svgTarget: 'thruster'
+        thrustN: 445,
+        ispS: 320,
+        svgPartId: 'cad-thruster'
       },
       {
         id: 'thruster-ion',
@@ -214,7 +230,9 @@ const SUBSYSTEMS = {
         power: -300,
         cost: 35,
         data: 0,
-        svgTarget: 'thruster'
+        thrustN: 0.236,
+        ispS: 4190,
+        svgPartId: 'cad-thruster'
       }
     ]
   },
@@ -229,7 +247,7 @@ const SUBSYSTEMS = {
         power: -30,
         cost: 15,
         data: 0,
-        svgTarget: null
+        svgPartId: null
       },
       {
         id: 'chassis-medium',
@@ -239,7 +257,7 @@ const SUBSYSTEMS = {
         power: -60,
         cost: 40,
         data: 0,
-        svgTarget: null
+        svgPartId: null
       },
       {
         id: 'chassis-flagship',
@@ -249,17 +267,17 @@ const SUBSYSTEMS = {
         power: -120,
         cost: 150,
         data: 0,
-        svgTarget: null
+        svgPartId: null
       }
     ]
   }
 };
 
-// ── GLOBAL SIMULATOR STATE ──
+// ── GLOBAL APPLICATION STATE ──
 const STATE = {
+  currentView: '01',
   mission: 'leo',
   vehicle: 'falcon9',
-  // Initial 5 equipped components matching target telemetry specs
   equipped: new Set([
     'solar-ultraflex',
     'antenna-kaband',
@@ -267,132 +285,181 @@ const STATE = {
     'spectrometer-mass',
     'thruster-coldgas'
   ]),
+  activeCategory: 'power',
   audioEnabled: false,
-  activeTab: 'power',
-  activeView: 'trajectory',
   timeWarp: 1,
-  metOffsetSec: 142 * 86400 + 8 * 3600 + 24 * 60 + 19, // T+142:08:24:19
-  metStartTime: Date.now(),
+  actionHistory: [], // Undo stack
+  advisorWarnings: [],
   launchReady: true,
-  animationAngle: 0
+
+  // Astrodynamics Simulation State (RK4)
+  rk4State: {
+    r: [6871000, 0], // x, y (meters)
+    v: [0, 7613],     // vx, vy (m/s)
+    trail: []
+  },
+
+  // Animation & Clock Timers
+  simAngle: 0,
+  metOffsetSec: 142 * 86400 + 8 * 3600 + 24 * 60 + 19,
+  metStartTime: Date.now(),
+  lastFrameTime: performance.now()
 };
 
-// ── FORMAT CURRENCY HELPER (Guarantees no stray backslashes) ──
-function formatCurrency(amountMillions) {
-  if (amountMillions >= 1000) {
-    return '$' + (amountMillions / 1000).toFixed(1) + 'B';
+// ── FORMAT CURRENCY HELPER ──
+function formatCurrency(valMillions) {
+  if (valMillions >= 1000) {
+    return '$' + (valMillions / 1000).toFixed(1) + 'B';
   }
-  return '$' + amountMillions.toFixed(1) + 'M';
+  return '$' + valMillions.toFixed(1) + 'M';
 }
 
-// ── DOM ELEMENTS CACHE ──
+// ── DOM CACHE ──
 const DOM = {};
 function cacheDom() {
   DOM.app = document.getElementById('app');
   DOM.loader = document.getElementById('loading-skeleton');
-  DOM.errorScreen = document.getElementById('error-screen');
-  DOM.errorMsg = document.getElementById('error-msg');
+  DOM.toastContainer = document.getElementById('toast-container');
 
-  // Clocks & Readouts
-  DOM.metClock = document.getElementById('met-clock');
-  DOM.utcClock = document.getElementById('utc-clock');
-  DOM.hudOrbit = document.getElementById('hud-orbit');
-  DOM.missionIdBadge = document.getElementById('mission-id-badge');
+  // Vitals Bar
+  DOM.vitalMass = document.getElementById('vital-mass');
+  DOM.vitalMassCap = document.getElementById('vital-mass-cap');
+  DOM.vitalMassChip = document.getElementById('vital-mass-chip');
 
-  // Top Selector
-  DOM.trajectoryReq = document.getElementById('trajectory-req');
-  DOM.vehicleCapLabel = document.getElementById('vehicle-cap-label');
-  DOM.missionBtns = document.querySelectorAll('.choice-btn[data-mission]');
-  DOM.vehicleBtns = document.querySelectorAll('.choice-btn[data-vehicle]');
+  DOM.vitalPower = document.getElementById('vital-power');
+  DOM.vitalPowerCap = document.getElementById('vital-power-cap');
+  DOM.vitalPowerChip = document.getElementById('vital-power-chip');
 
-  // Telemetry Gauges
-  DOM.massVal = document.getElementById('mass-val');
-  DOM.massPct = document.getElementById('mass-pct');
-  DOM.massMaxText = document.getElementById('mass-max-text');
-  DOM.massMargin = document.getElementById('mass-margin');
-  DOM.massStatus = document.getElementById('mass-status');
-  DOM.massFill = document.getElementById('mass-fill');
-  DOM.gaugeMass = document.getElementById('gauge-mass');
+  DOM.vitalBudget = document.getElementById('vital-budget');
+  DOM.vitalBudgetCap = document.getElementById('vital-budget-cap');
+  DOM.vitalBudgetChip = document.getElementById('vital-budget-chip');
 
-  DOM.powerVal = document.getElementById('power-val');
-  DOM.powerPct = document.getElementById('power-pct');
-  DOM.powerSubText = document.getElementById('power-sub-text');
-  DOM.battBuffer = document.getElementById('batt-buffer');
-  DOM.powerStatus = document.getElementById('power-status');
-  DOM.powerFill = document.getElementById('power-fill');
-  DOM.gaugePower = document.getElementById('gauge-power');
+  DOM.vitalDv = document.getElementById('vital-dv');
+  DOM.vitalTwr = document.getElementById('vital-twr');
+  DOM.vitalDvChip = document.getElementById('vital-dv-chip');
 
-  DOM.budgetVal = document.getElementById('budget-val');
-  DOM.budgetPct = document.getElementById('budget-pct');
-  DOM.budgetSubText = document.getElementById('budget-sub-text');
-  DOM.budgetReserve = document.getElementById('budget-reserve');
-  DOM.budgetStatus = document.getElementById('budget-status');
-  DOM.budgetFill = document.getElementById('budget-fill');
-  DOM.gaugeBudget = document.getElementById('gauge-budget');
+  // Navigation Buttons
+  DOM.navBtns = document.querySelectorAll('.nav-btn');
+  DOM.views = document.querySelectorAll('.focused-view');
+  DOM.btnFlowPrev = document.getElementById('btn-flow-prev');
+  DOM.btnFlowNext = document.getElementById('btn-flow-next');
+  DOM.stepDots = document.querySelectorAll('.step-dot');
 
-  DOM.dataVal = document.getElementById('data-val');
-  DOM.dataTargetText = document.getElementById('data-target-text');
-  DOM.dataSubText = document.getElementById('data-sub-text');
-  DOM.dataMargin = document.getElementById('data-margin');
-  DOM.dataStatus = document.getElementById('data-status');
-  DOM.dataFill = document.getElementById('data-fill');
-  DOM.gaugeData = document.getElementById('gauge-data');
+  // View 01 Mission
+  DOM.missionCards = document.querySelectorAll('.choice-card[data-mission]');
+  DOM.missionPreviewCanvas = document.getElementById('mission-preview-canvas');
+  DOM.missionPreviewTag = document.getElementById('mission-preview-tag');
+  DOM.previewPeriod = document.getElementById('preview-period');
+  DOM.previewVector = document.getElementById('preview-vector');
 
-  // Middle HUD elements
-  DOM.hudMainTitle = document.getElementById('hud-main-title');
-  DOM.hudMetaText = document.getElementById('hud-meta-text');
-  DOM.hudConicTag = document.getElementById('hud-conic-tag');
-  DOM.orbitCanvas = document.getElementById('orbit-canvas');
+  // View 02 Vehicle
+  DOM.vehicleCards = document.querySelectorAll('.vehicle-card[data-vehicle]');
+  DOM.f9Fill = document.getElementById('f9-cap-fill');
+  DOM.fhFill = document.getElementById('fh-cap-fill');
+  DOM.slsFill = document.getElementById('sls-cap-fill');
+  DOM.f9Sub = document.getElementById('f9-status-sub');
+  DOM.fhSub = document.getElementById('fh-status-sub');
+  DOM.slsSub = document.getElementById('sls-status-sub');
+
+  // View 03 Build
+  DOM.subsystemList = document.getElementById('subsystem-cards-list');
+  DOM.outfitterBadge = document.getElementById('outfitter-equipped-badge');
+  DOM.cadActiveCount = document.getElementById('cad-active-count');
+  DOM.categoryTabs = document.querySelectorAll('.seg-btn[data-cat]');
+
+  // View 04 Analyze
+  DOM.orbitHudCanvas = document.getElementById('orbit-hud-canvas');
   DOM.navballCanvas = document.getElementById('navball-canvas');
-  DOM.conicCanvas = document.getElementById('conic-canvas');
-  DOM.overTarget = document.getElementById('over-target');
-  DOM.overPeri = document.getElementById('over-peri');
-  DOM.overVel = document.getElementById('over-vel');
+  DOM.conicTransferCanvas = document.getElementById('conic-transfer-canvas');
+  DOM.tsiolkovskyCanvas = document.getElementById('tsiolkovsky-canvas');
+  DOM.hudOrbitTitle = document.getElementById('hud-orbit-title');
+  DOM.teleTarget = document.getElementById('tele-target');
+  DOM.telePeri = document.getElementById('tele-peri');
+  DOM.teleVel = document.getElementById('tele-vel');
   DOM.navballReadout = document.getElementById('navball-readout');
 
-  // Trajectory Conic Stats
-  DOM.trajDv = document.getElementById('traj-dv');
-  DOM.trajTwr = document.getElementById('traj-twr');
-  DOM.trajPeriod = document.getElementById('traj-period');
-  DOM.trajTargetLabel = document.getElementById('traj-target-label');
+  // KaTeX equation elements
+  DOM.katexTsiolkovsky = document.getElementById('katex-tsiolkovsky');
+  DOM.katexVisviva = document.getElementById('katex-visviva');
+  DOM.katexKepler3 = document.getElementById('katex-kepler3');
+  DOM.katexHohmann = document.getElementById('katex-hohmann');
+  DOM.katexPower = document.getElementById('katex-power');
 
-  // Subsystem Outfitter
-  DOM.outfitter = document.getElementById('subsystem-outfitter');
-  DOM.equippedCount = document.getElementById('equipped-count');
-  DOM.footerModulesCount = document.getElementById('footer-modules-count');
+  // Math live tags
+  DOM.mathM0 = document.getElementById('math-m0');
+  DOM.mathMf = document.getElementById('math-mf');
+  DOM.mathIsp = document.getElementById('math-isp');
+  DOM.mathDvRes = document.getElementById('math-dv-res');
+  DOM.mathR = document.getElementById('math-r');
+  DOM.mathVorb = document.getElementById('math-vorb');
+  DOM.mathSma = document.getElementById('math-sma');
+  DOM.mathPeriod = document.getElementById('math-period');
+  DOM.mathDv1 = document.getElementById('math-dv1');
+  DOM.mathDv2 = document.getElementById('math-dv2');
+  DOM.mathDvTot = document.getElementById('math-dv-tot');
+  DOM.mathPowerBreakdown = document.getElementById('math-power-breakdown');
 
-  // Advisor & Sequencer
-  DOM.advisorLog = document.getElementById('advisor-log');
-  DOM.btnLaunch = document.getElementById('btn-launch');
-  DOM.launchSubStatus = document.getElementById('launch-sub-status');
-  DOM.launchOverlay = document.getElementById('launch-overlay');
-  DOM.countdownText = document.getElementById('countdown-text');
-  DOM.launchProgressFill = document.getElementById('launch-progress-fill');
-  DOM.launchTargetDesc = document.getElementById('launch-target-desc');
+  // View 05 Launch
+  DOM.checklistBadge = document.getElementById('checklist-overall-badge');
+  DOM.chkMass = document.getElementById('chk-mass');
+  DOM.chkPower = document.getElementById('chk-power');
+  DOM.chkBudget = document.getElementById('chk-budget');
+  DOM.chkDv = document.getElementById('chk-dv');
+  DOM.chkComms = document.getElementById('chk-comms');
+  DOM.btnHoldLaunch = document.getElementById('btn-hold-launch');
+  DOM.holdRingFill = document.getElementById('hold-ring-fill');
+  DOM.launchHint = document.getElementById('launch-hint');
+  DOM.sumMissionName = document.getElementById('sum-mission-name');
+  DOM.sumVehicleName = document.getElementById('sum-vehicle-name');
+  DOM.sumVectorDesc = document.getElementById('sum-vector-desc');
 
-  // Audio & Navigation
-  DOM.btnAudio = document.getElementById('btn-audio');
-  DOM.audioState = document.getElementById('audio-state');
-  DOM.sideDownlink = document.getElementById('side-downlink');
-  DOM.sideDoppler = document.getElementById('side-doppler');
+  // Advisor Drawer
+  DOM.advisorDrawer = document.getElementById('advisor-drawer');
+  DOM.advisorBadge = document.getElementById('advisor-badge');
+  DOM.btnAdvisorToggle = document.getElementById('btn-advisor-toggle');
+  DOM.btnCloseAdvisor = document.getElementById('btn-close-advisor');
+  DOM.advisorSummary = document.getElementById('advisor-summary-text');
+  DOM.advisorAlertsList = document.getElementById('advisor-alerts-list');
 
-  // Modals
+  // Ambient Telemetry Popover
+  DOM.telemetryPopover = document.getElementById('telemetry-popover');
+  DOM.btnTelemetryPopover = document.getElementById('btn-telemetry-popover');
+  DOM.btnCloseTelemetry = document.getElementById('btn-close-telemetry');
+  DOM.ambientMet = document.getElementById('ambient-met');
+  DOM.ambientUtc = document.getElementById('ambient-utc');
+  DOM.ambientDownlink = document.getElementById('ambient-downlink');
+
+  // Shortcuts Popover
+  DOM.shortcutsPopover = document.getElementById('shortcuts-popover');
+  DOM.btnShortcutsPopover = document.getElementById('btn-shortcuts-popover');
+  DOM.btnCloseShortcuts = document.getElementById('btn-close-shortcuts');
+
+  // Sources Modal
   DOM.sourcesModal = document.getElementById('sources-modal');
   DOM.btnSources = document.getElementById('btn-sources');
   DOM.btnCloseSources = document.getElementById('btn-close-sources');
+
+  // Audio Toggle
+  DOM.btnAudio = document.getElementById('btn-audio');
+  DOM.audioState = document.getElementById('audio-state');
+
+  // Cinematic Overlay
+  DOM.cinematicOverlay = document.getElementById('cinematic-overlay');
+  DOM.cineStageLabel = document.getElementById('cine-stage-label');
+  DOM.cineMainText = document.getElementById('cine-main-text');
+  DOM.cineSubText = document.getElementById('cine-sub-text');
+  DOM.cineFill = document.getElementById('cine-fill');
 }
 
-// ── NATIVE WEB AUDIO SYNTHESIS (Zero External Audio Assets) ──
+// ── NATIVE AUDIO SYNTHESIS (Zero External Assets) ──
 let audioCtx = null;
 function initAudio() {
   if (audioCtx) return;
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (AudioContextClass) {
-    audioCtx = new AudioContextClass();
-  }
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (AudioCtx) audioCtx = new AudioCtx();
 }
 
-function playTone(freq, duration, type, volume) {
+function playTone(freq, dur, type, vol) {
   if (!STATE.audioEnabled || !audioCtx) return;
   try {
     const osc = audioCtx.createOscillator();
@@ -400,52 +467,178 @@ function playTone(freq, duration, type, volume) {
     osc.type = type || 'sine';
     osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
 
-    gain.gain.setValueAtTime(volume || 0.05, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+    gain.gain.setValueAtTime(vol || 0.05, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
     osc.start();
-    osc.stop(audioCtx.currentTime + duration);
-  } catch (e) {
-    // Graceful fallback for audio restriction
-  }
+    osc.stop(audioCtx.currentTime + dur);
+  } catch (e) {}
 }
 
 function sfxClick() { playTone(2400, 0.04, 'square', 0.03); }
-function sfxEquip() { playTone(1800, 0.07, 'triangle', 0.05); }
-function sfxUnequip() { playTone(820, 0.07, 'triangle', 0.04); }
-function sfxError() { playTone(140, 0.22, 'sawtooth', 0.08); }
+function sfxEquip() { playTone(1800, 0.06, 'triangle', 0.05); }
+function sfxUnequip() { playTone(820, 0.06, 'triangle', 0.04); }
+function sfxWarn() { playTone(180, 0.25, 'sawtooth', 0.08); }
 function sfxLaunch() {
-  playTone(55, 1.2, 'sawtooth', 0.12);
-  playTone(110, 1.2, 'sine', 0.08);
+  playTone(55, 1.4, 'sawtooth', 0.12);
+  playTone(110, 1.4, 'sine', 0.08);
 }
 
-// ── HELPER: GET EQUIPPED MODULES LIST ──
+// ── TOAST WITH UNDO SYSTEM (Step 3) ──
+function showToast(message, undoCallback) {
+  const toast = document.createElement('div');
+  toast.className = 'toast-msg';
+  toast.innerHTML = `<span>${message}</span>`;
+
+  if (undoCallback) {
+    const btn = document.createElement('button');
+    btn.className = 'toast-undo-btn';
+    btn.textContent = 'UNDO';
+    btn.addEventListener('click', () => {
+      undoCallback();
+      toast.remove();
+    });
+    toast.appendChild(btn);
+  }
+
+  DOM.toastContainer.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+    setTimeout(() => toast.remove(), 250);
+  }, 4000);
+}
+
+function undoLastAction() {
+  if (STATE.actionHistory.length === 0) return;
+  const action = STATE.actionHistory.pop();
+  if (action.type === 'toggle') {
+    if (action.wasEquipped) {
+      STATE.equipped.add(action.itemId);
+    } else {
+      STATE.equipped.delete(action.itemId);
+    }
+    renderSubsystems(STATE.activeCategory);
+    updateAll();
+    showToast(`Undone: ${action.name} state restored.`);
+  }
+}
+
+// ── VIEW SWITCHING (250ms Animated Slide / Fade) ──
+function switchView(viewId) {
+  if (STATE.currentView === viewId) return;
+  sfxClick();
+
+  const prevViewEl = document.getElementById('view-' + STATE.currentView);
+  const nextViewEl = document.getElementById('view-' + viewId);
+
+  if (prevViewEl) {
+    prevViewEl.classList.remove('active');
+  }
+
+  STATE.currentView = viewId;
+
+  if (nextViewEl) {
+    nextViewEl.classList.add('active');
+  }
+
+  // Update navigation buttons
+  DOM.navBtns.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === viewId);
+  });
+
+  // Update step dots
+  DOM.stepDots.forEach(dot => {
+    dot.classList.toggle('active', dot.dataset.step === viewId);
+  });
+
+  // Update flow buttons text
+  const stepNum = parseInt(viewId, 10);
+  DOM.btnFlowPrev.disabled = (stepNum === 1);
+
+  const nextLabels = {
+    1: 'Next: Select Vehicle →',
+    2: 'Next: Configure Chassis →',
+    3: 'Next: Analyze Dynamics →',
+    4: 'Next: Pre-Flight Checklist →',
+    5: 'Launch Readiness Complete'
+  };
+  DOM.btnFlowNext.textContent = nextLabels[stepNum] || 'Next →';
+  DOM.btnFlowNext.disabled = (stepNum === 5);
+}
+
+// ── GET EQUIPPED MODULES LIST ──
 function getEquippedItems() {
   const list = [];
   for (const cat of Object.values(SUBSYSTEMS)) {
     for (const item of cat.items) {
-      if (STATE.equipped.has(item.id)) {
-        list.push(item);
-      }
+      if (STATE.equipped.has(item.id)) list.push(item);
     }
   }
   return list;
 }
 
-// ── RENDER SUBSYSTEM OUTFITTER ──
-function renderSubsystems(categoryKey) {
-  const cat = SUBSYSTEMS[categoryKey];
-  if (!cat) return;
+// ── CONSTRAINT VERIFICATION LOGIC ──
+function checkModuleConstraint(item) {
+  const vehicle = VEHICLES[STATE.vehicle];
+  const items = getEquippedItems();
+
+  let massSum = 0;
+  let powerGen = 0;
+  let powerLoad = 0;
+  let costSum = vehicle.cost;
+
+  items.forEach(i => {
+    massSum += i.mass;
+    if (i.power >= 0) powerGen += i.power;
+    else powerLoad += Math.abs(i.power);
+    costSum += i.cost;
+  });
+
+  if (!STATE.equipped.has(item.id)) {
+    // Testing equip constraint
+    const testMass = massSum + item.mass;
+    const testCost = costSum + item.cost;
+    const testLoad = item.power < 0 ? powerLoad + Math.abs(item.power) : powerLoad;
+    const testGen = item.power > 0 ? powerGen + item.power : powerGen;
+
+    if (testMass > vehicle.maxPayloadKg) {
+      return {
+        allowed: false,
+        reason: `Exceeds ${vehicle.name} limit (+${(testMass - vehicle.maxPayloadKg)} kg)`,
+        suggestFix: 'Switch to Falcon Heavy'
+      };
+    }
+    if (testCost > 250) {
+      return {
+        allowed: false,
+        reason: `Exceeds budget ceiling ($${testCost.toFixed(1)}M > $250M)`,
+        suggestFix: 'Reduce high-cost modules'
+      };
+    }
+  }
+  return { allowed: true };
+}
+
+// ── RENDER SUBSYSTEM OUTFITTER (Step 3) ──
+function renderSubsystems(catKey) {
+  STATE.activeCategory = catKey;
+  const cat = SUBSYSTEMS[catKey];
+  if (!cat || !DOM.subsystemList) return;
 
   const frag = document.createDocumentFragment();
 
   cat.items.forEach(item => {
-    const card = document.createElement('div');
     const isEquipped = STATE.equipped.has(item.id);
+    const constraint = checkModuleConstraint(item);
+
+    const card = document.createElement('div');
     card.className = 'component-card' + (isEquipped ? ' equipped' : '');
     card.dataset.id = item.id;
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
 
     const pwrSign = item.power >= 0 ? '+' : '';
     const dataSign = item.data > 0 ? '+' : '';
@@ -458,332 +651,577 @@ function renderSubsystems(categoryKey) {
       <div class="comp-desc">${item.desc}</div>
       <div class="comp-badges">
         <span class="comp-badge">MASS: <strong>+${item.mass} KG</strong></span>
-        <span class="comp-badge ${item.power >= 0 ? 'pos' : 'neg'}">PWR: <strong>${pwrSign}${item.power}W</strong></span>
-        <span class="comp-badge neg">COST: <strong>-${formatCurrency(item.cost)}</strong></span>
-        ${item.data !== 0 ? `<span class="comp-badge ${item.data > 0 ? 'pos' : 'neg'}">DATA: <strong>${dataSign}${item.data} Mbps</strong></span>` : ''}
+        <span class="comp-badge ${item.power >= 0 ? 'pos' : ''}">PWR: <strong>${pwrSign}${item.power}W</strong></span>
+        <span class="comp-badge">COST: <strong>-${formatCurrency(item.cost)}</strong></span>
+        ${item.data !== 0 ? `<span class="comp-badge ${item.data > 0 ? 'pos' : ''}">DATA: <strong>${dataSign}${item.data} Mbps</strong></span>` : ''}
       </div>
     `;
 
-    card.addEventListener('click', () => toggleComponent(item.id));
+    card.addEventListener('click', () => toggleComponent(item));
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleComponent(item);
+      }
+    });
+
     frag.appendChild(card);
   });
 
-  DOM.outfitter.textContent = '';
-  DOM.outfitter.appendChild(frag);
+  DOM.subsystemList.textContent = '';
+  DOM.subsystemList.appendChild(frag);
+
+  // Update tabs active state
+  DOM.categoryTabs.forEach(t => {
+    t.classList.toggle('active', t.dataset.cat === catKey);
+  });
 }
 
-// ── TOGGLE COMPONENT STATE ──
-function toggleComponent(itemId) {
-  if (STATE.equipped.has(itemId)) {
-    STATE.equipped.delete(itemId);
+// ── TOGGLE COMPONENT WITH CONSTRAINTS & TOAST ──
+function toggleComponent(item) {
+  const wasEquipped = STATE.equipped.has(item.id);
+
+  if (wasEquipped) {
+    STATE.equipped.delete(item.id);
     sfxUnequip();
+    showToast(`Stowed: ${item.name}`, () => {
+      STATE.equipped.add(item.id);
+      renderSubsystems(STATE.activeCategory);
+      updateAll();
+    });
   } else {
-    STATE.equipped.add(itemId);
+    const check = checkModuleConstraint(item);
+    if (!check.allowed) {
+      sfxWarn();
+      showToast(`Warning: ${check.reason}. Suggested: ${check.suggestFix}`);
+    }
+    STATE.equipped.add(item.id);
     sfxEquip();
+    showToast(`Equipped: ${item.name}`, () => {
+      STATE.equipped.delete(item.id);
+      renderSubsystems(STATE.activeCategory);
+      updateAll();
+    });
   }
-  renderSubsystems(STATE.activeTab);
-  updateTelemetry();
-  updateChassisSvgHighlights();
+
+  STATE.actionHistory.push({
+    type: 'toggle',
+    itemId: item.id,
+    name: item.name,
+    wasEquipped
+  });
+
+  renderSubsystems(STATE.activeCategory);
+  updateAll();
 }
 
-// ── UPDATE TELEMETRY (All metrics strictly derived from real state) ──
-function updateTelemetry() {
+// ── UPDATE TELEMETRY & ADVISOR STATE ──
+function updateAll() {
   const vehicle = VEHICLES[STATE.vehicle];
   const mission = MISSIONS[STATE.mission];
   const items = getEquippedItems();
 
-  let totalMass = 0;
-  let totalPowerGen = 0;
-  let totalPowerLoad = 0;
-  let totalSubsystemCost = 0;
-  let totalDataPayload = 0;
+  let massSum = 0;
+  let powerGen = 0;
+  let powerLoad = 0;
+  let costSum = vehicle.cost;
+  let dataThroughput = 0;
+  let ispAvg = 320;
 
-  items.forEach(item => {
-    totalMass += item.mass;
-    if (item.power >= 0) {
-      totalPowerGen += item.power;
-    } else {
-      totalPowerLoad += Math.abs(item.power);
-    }
-    totalSubsystemCost += item.cost;
-    totalDataPayload += item.data;
+  items.forEach(i => {
+    massSum += i.mass;
+    if (i.power >= 0) powerGen += i.power;
+    else powerLoad += Math.abs(i.power);
+    costSum += i.cost;
+    dataThroughput += i.data;
+    if (i.ispS) ispAvg = i.ispS;
   });
 
-  const netPower = totalPowerGen - totalPowerLoad;
-  const totalCost = vehicle.cost + totalSubsystemCost;
-  const projectBudgetCap = 250.0;
-  const budgetReserve = projectBudgetCap - totalCost;
-
-  // 1. Mass Telemetry
-  const massRatio = (totalMass / vehicle.mass) * 100;
+  const netPower = powerGen - powerLoad;
+  const projectCap = 250.0;
+  const massRatio = (massSum / vehicle.maxPayloadKg) * 100;
   const structuralMargin = Math.max(0, 100 - massRatio);
-  DOM.massVal.textContent = totalMass.toLocaleString();
-  DOM.massPct.textContent = massRatio.toFixed(1) + '%';
-  DOM.massMaxText.textContent = 'MAX: ' + vehicle.mass.toLocaleString() + ' KG';
-  DOM.massMargin.textContent = structuralMargin.toFixed(1) + '%';
-  DOM.massFill.style.width = Math.min(massRatio, 100) + '%';
 
-  DOM.gaugeMass.className = 'metric-card';
-  if (massRatio > 100) {
-    DOM.gaugeMass.classList.add('alert');
-    DOM.massStatus.className = 'metric-chip alert';
-    DOM.massStatus.textContent = '[OVERCAPACITY]';
-  } else if (massRatio > 85) {
-    DOM.gaugeMass.classList.add('warn');
-    DOM.massStatus.className = 'metric-chip warn';
-    DOM.massStatus.textContent = '[MARGIN CRITICAL]';
-  } else {
-    DOM.massStatus.className = 'metric-chip nominal';
-    DOM.massStatus.textContent = '[NOMINAL]';
-  }
+  // 1. Vitals Bar Updates
+  DOM.vitalMass.textContent = massSum.toLocaleString() + ' KG';
+  DOM.vitalMassCap.textContent = '/ ' + vehicle.maxPayloadKg.toLocaleString() + ' KG';
+  DOM.vitalMassChip.textContent = structuralMargin.toFixed(1) + '% MARGIN';
+  DOM.vitalMassChip.className = 'vital-chip ' + (massRatio > 100 ? 'alert' : massRatio > 85 ? 'warn' : 'nominal');
 
-  // 2. Power Telemetry
-  const powerSign = netPower >= 0 ? '+' : '';
-  DOM.powerVal.textContent = powerSign + netPower;
-  DOM.powerPct.textContent = powerSign + netPower + ' W';
-  DOM.powerSubText.textContent = 'GEN: ' + totalPowerGen + 'W | LOAD: ' + totalPowerLoad + 'W';
-  const batteryBufferWh = Math.max(0, (totalPowerGen * 0.22)).toFixed(1);
-  DOM.battBuffer.textContent = batteryBufferWh + ' Wh';
+  const pwrSign = netPower >= 0 ? '+' : '';
+  DOM.vitalPower.textContent = pwrSign + netPower + ' W';
+  DOM.vitalPowerCap.textContent = `${powerGen}W GEN │ ${powerLoad}W LOAD`;
+  DOM.vitalPowerChip.textContent = netPower < 0 ? 'DEFICIT' : 'SURPLUS';
+  DOM.vitalPowerChip.className = 'vital-chip ' + (netPower < 0 ? 'alert' : 'surplus');
 
-  const powerBarWidth = totalPowerGen > 0
-    ? (totalPowerGen / (totalPowerGen + totalPowerLoad)) * 100
-    : 0;
-  DOM.powerFill.style.width = Math.min(100, Math.max(5, powerBarWidth)) + '%';
+  DOM.vitalBudget.textContent = formatCurrency(costSum);
+  DOM.vitalBudgetCap.textContent = '/ ' + formatCurrency(projectCap);
+  DOM.vitalBudgetChip.textContent = costSum > projectCap ? 'EXCEEDED' : 'FUNDED';
+  DOM.vitalBudgetChip.className = 'vital-chip ' + (costSum > projectCap ? 'alert' : 'nominal');
 
-  DOM.gaugePower.className = 'metric-card';
-  if (netPower < 0) {
-    DOM.gaugePower.classList.add('alert');
-    DOM.powerStatus.className = 'metric-chip alert';
-    DOM.powerStatus.textContent = '[DEFICIT]';
-  } else if (netPower > 0) {
-    DOM.powerStatus.className = 'metric-chip surplus';
-    DOM.powerStatus.textContent = '[SURPLUS]';
-  } else {
-    DOM.powerStatus.className = 'metric-chip nominal';
-    DOM.powerStatus.textContent = '[BALANCED]';
-  }
+  const twr = massSum > 0 ? (445 / (massSum * 9.81)).toFixed(2) : '0.00';
+  DOM.vitalDv.textContent = '+' + mission.dvReq + ' m/s';
+  DOM.vitalTwr.textContent = 'TWR ' + twr;
 
-  // 3. Project Budget Telemetry
-  const budgetRatio = (totalCost / projectBudgetCap) * 100;
-  DOM.budgetVal.textContent = formatCurrency(totalCost);
-  DOM.budgetPct.textContent = budgetRatio.toFixed(1) + '%';
-  DOM.budgetSubText.textContent = 'CAP: ' + formatCurrency(projectBudgetCap);
-  DOM.budgetReserve.textContent = formatCurrency(Math.max(0, budgetReserve));
-  DOM.budgetFill.style.width = Math.min(budgetRatio, 100) + '%';
+  // 2. Outfitter & CAD Counts
+  DOM.outfitterBadge.textContent = items.length + ' EQUIPPED';
+  DOM.cadActiveCount.textContent = `${items.length} / 15`;
 
-  DOM.gaugeBudget.className = 'metric-card';
-  if (totalCost > projectBudgetCap) {
-    DOM.gaugeBudget.classList.add('alert');
-    DOM.budgetStatus.className = 'metric-chip alert';
-    DOM.budgetStatus.textContent = '[EXCEEDED]';
-  } else if (budgetRatio > 90) {
-    DOM.gaugeBudget.classList.add('warn');
-    DOM.budgetStatus.className = 'metric-chip warn';
-    DOM.budgetStatus.textContent = '[RESERVE LOW]';
-  } else {
-    DOM.budgetStatus.className = 'metric-chip nominal';
-    DOM.budgetStatus.textContent = '[FUNDED]';
-  }
+  // 3. Vehicle View Gauges
+  const f9Pct = Math.min(100, (massSum / 22800) * 100);
+  const fhPct = Math.min(100, (massSum / 63800) * 100);
+  const slsPct = Math.min(100, (massSum / 95000) * 100);
 
-  // 4. Data Telemetry
-  const netThroughput = Math.max(0, totalDataPayload);
-  DOM.dataVal.textContent = netThroughput.toFixed(1);
-  DOM.dataTargetText.textContent = 'TGT: ' + mission.targetData + 'M';
-  DOM.dataSubText.textContent = 'PAYLOAD: ' + Math.max(0, Math.abs(totalDataPayload)).toFixed(1) + ' Mbps';
-  const dataRatio = (netThroughput / (mission.targetData * 3)) * 100;
-  DOM.dataFill.style.width = Math.min(Math.max(dataRatio, 5), 100) + '%';
+  DOM.f9Fill.style.width = f9Pct.toFixed(1) + '%';
+  DOM.fhFill.style.width = fhPct.toFixed(1) + '%';
+  DOM.slsFill.style.width = slsPct.toFixed(1) + '%';
 
-  const dsnLinkMarginDb = (+23.4 + (netThroughput > mission.targetData ? 2.5 : -5.0)).toFixed(1);
-  DOM.dataMargin.textContent = (dsnLinkMarginDb > 0 ? '+' : '') + dsnLinkMarginDb + ' dB';
+  DOM.f9Sub.textContent = `${massSum} kg equipped (${f9Pct.toFixed(1)}% of capacity)`;
+  DOM.fhSub.textContent = `${massSum} kg equipped (${fhPct.toFixed(1)}% of capacity)`;
+  DOM.slsSub.textContent = `${massSum} kg equipped (${slsPct.toFixed(1)}% of capacity)`;
 
-  DOM.gaugeData.className = 'metric-card';
-  if (netThroughput < mission.targetData && items.length > 0) {
-    DOM.gaugeData.classList.add('warn');
-    DOM.dataStatus.className = 'metric-chip warn';
-    DOM.dataStatus.textContent = '[BANDWIDTH LOW]';
-  } else {
-    DOM.dataStatus.className = 'metric-chip nominal';
-    DOM.dataStatus.textContent = '[NOMINAL LINK]';
-  }
+  // Incompatibility dimming
+  DOM.vehicleCards.forEach(card => {
+    const vId = card.dataset.vehicle;
+    const vObj = VEHICLES[vId];
+    const isOver = massSum > vObj.maxPayloadKg;
+    card.classList.toggle('disabled', isOver);
+  });
 
-  // Counts & Status Bar
-  DOM.equippedCount.textContent = items.length + ' SUBSYSTEMS';
-  DOM.footerModulesCount.textContent = items.length + ' MODULES EQUIPPED';
-  DOM.sideDownlink.textContent = (84.2 + (netThroughput > 0 ? 0.0 : -40.0)).toFixed(1) + ' MB/S';
-
-  // Mission Headers Update
-  DOM.hudOrbit.textContent = 'AP: ' + mission.apoapsis + ' // PE: ' + mission.periapsis + ' | INC: ' + mission.inc;
-  DOM.missionIdBadge.textContent = mission.code;
-  DOM.trajectoryReq.textContent = mission.reqText;
-  DOM.vehicleCapLabel.textContent = 'CAP: ' + vehicle.mass.toLocaleString() + ' KG // BASE: ' + formatCurrency(vehicle.cost);
-
-  DOM.overTarget.textContent = mission.name.toUpperCase();
-  DOM.overPeri.textContent = mission.periapsis;
-  DOM.overVel.textContent = mission.targetVel;
-
-  DOM.hudMainTitle.textContent = mission.name.toUpperCase() + ' ORBITAL INSERTION HUD';
-  DOM.hudMetaText = `CONIC: ORBIT-04 | TOF: ${mission.periodMin} min | dV_REQ: ${mission.dvReq} m/s`;
-  DOM.trajDv.textContent = mission.dvReq;
-  DOM.trajPeriod.textContent = mission.periodMin > 1440
+  // 4. Mission View Preview Text
+  DOM.missionPreviewTag.textContent = mission.previewConicTag;
+  DOM.previewPeriod.textContent = mission.periodMin > 1440
     ? (mission.periodMin / 1440).toFixed(0) + ' days'
-    : mission.periodMin.toFixed(1);
-  DOM.trajTargetLabel.textContent = mission.vector;
+    : mission.periodMin.toFixed(1) + ' min';
+  DOM.previewVector.textContent = mission.vectorDesc;
 
-  // Thrust-to-weight ratio
-  const twrVal = totalMass > 0 ? (445 / (totalMass * 9.81)).toFixed(2) : '0.00';
-  DOM.trajTwr.textContent = twrVal;
+  // 5. Checklist View Evaluator
+  const isMassOk = massSum > 0 && massSum <= vehicle.maxPayloadKg;
+  const isPowerOk = netPower >= 0;
+  const isBudgetOk = costSum <= projectCap;
+  const isDvOk = mission.dvReq > 0;
+  const isCommsOk = STATE.equipped.has('antenna-kaband') || STATE.equipped.has('antenna-xband') || STATE.equipped.has('antenna-sband');
 
-  // Launch Sequencer Readiness Evaluation
-  const massValid = totalMass > 0 && totalMass <= vehicle.mass;
-  const powerValid = netPower >= 0;
-  const modulesPresent = items.length > 0;
-  const budgetValid = totalCost <= projectBudgetCap;
+  updateCheckItem('chk-mass', isMassOk, `Payload ${massSum} kg is within ${vehicle.name} limit (${vehicle.maxPayloadKg.toLocaleString()} kg).`, `Mass ${massSum} kg exceeds ${vehicle.name} ceiling.`);
+  updateCheckItem('chk-power', isPowerOk, `Surplus +${netPower}W generated. Steady-state bus is positive.`, `Power deficit of ${Math.abs(netPower)}W detected.`);
+  updateCheckItem('chk-budget', isBudgetOk, `Total cost ${formatCurrency(costSum)} is within approved ${formatCurrency(projectCap)} ceiling.`, `Cost ${formatCurrency(costSum)} exceeds approved ${formatCurrency(projectCap)} cap.`);
+  updateCheckItem('chk-dv', isDvOk, `${mission.dvReq} m/s meets orbital insertion requirement.`, 'No propulsion budget defined.');
+  updateCheckItem('chk-comms', isCommsOk, 'Antenna equipped for telemetry downlink.', 'No telecommunications antenna equipped.');
 
-  STATE.launchReady = massValid && powerValid && modulesPresent && budgetValid;
+  const allPassed = isMassOk && isPowerOk && isBudgetOk && isDvOk && isCommsOk;
+  STATE.launchReady = allPassed;
 
-  DOM.btnLaunch.disabled = !STATE.launchReady;
-  DOM.btnLaunch.className = 'btn-launch';
+  DOM.checklistBadge.textContent = allPassed ? 'ALL CHECKS PASSED' : 'ACTION REQUIRED';
+  DOM.checklistBadge.className = 'checklist-status-badge ' + (allPassed ? 'nominal' : 'alert');
+  DOM.btnHoldLaunch.disabled = !allPassed;
 
-  if (STATE.launchReady) {
-    DOM.btnLaunch.classList.add('go');
-    DOM.launchSubStatus.textContent = 'ALL SYSTEMS GO — PRESS SPACE TO LAUNCH';
-  } else {
-    DOM.btnLaunch.classList.add('no-go');
-    if (totalMass > vehicle.mass) {
-      DOM.launchSubStatus.textContent = 'PAYLOAD EXCEEDS VEHICLE MASS CAP';
-    } else if (netPower < 0) {
-      DOM.launchSubStatus.textContent = 'POWER DEFICIT PREVENTS LAUNCH';
-    } else if (totalCost > projectBudgetCap) {
-      DOM.launchSubStatus.textContent = 'PROJECT EXCEEDS APPROVED BUDGET';
-    } else {
-      DOM.launchSubStatus.textContent = 'SELECT COMPATIBLE SUBSYSTEMS';
-    }
-  }
+  DOM.sumMissionName.textContent = mission.name.toUpperCase();
+  DOM.sumVehicleName.textContent = vehicle.name.toUpperCase();
+  DOM.sumVectorDesc.textContent = mission.vectorDesc;
 
-  // Chief Avionics Educational Advisor Feedback
-  runAdvisorDiagnostics(items, totalMass, netPower, netThroughput, vehicle, mission);
+  // 6. Advisor Findings (Step 2 Drawer)
+  updateAdvisorDrawer(items, massSum, netPower, vehicle, mission, isCommsOk);
+
+  // 7. Update Live Math Equations (Step 5)
+  updateMathPanel(massSum, vehicle, mission, ispAvg, netPower, items);
+
+  // 8. Update Chassis Part Highlighting
+  updateCadHighlights();
 }
 
-// ── CHIEF AVIONICS ADVISOR LOGIC (Autonomous Educational Engine) ──
-function runAdvisorDiagnostics(items, totalMass, netPower, netThroughput, vehicle, mission) {
-  DOM.advisorLog.textContent = '';
+function updateCheckItem(elementId, passed, passText, failText) {
+  const row = document.getElementById(elementId);
+  if (!row) return;
+  const icon = row.querySelector('.check-icon');
+  const sub = row.querySelector('.check-sub');
+  const pill = row.querySelector('.check-pill');
+
+  icon.textContent = passed ? '✓' : '✕';
+  icon.style.color = passed ? 'var(--status-nominal)' : 'var(--alert-red)';
+  sub.textContent = passed ? passText : failText;
+  pill.textContent = passed ? 'PASS' : 'FAIL';
+  pill.className = 'check-pill ' + (passed ? 'nominal' : 'fail');
+}
+
+// ── CHIEF AVIONICS ADVISOR DRAWER ──
+function updateAdvisorDrawer(items, massSum, netPower, vehicle, mission, isCommsOk) {
+  STATE.advisorWarnings = [];
+
+  if (massSum > vehicle.maxPayloadKg) {
+    STATE.advisorWarnings.push({
+      type: 'critical',
+      title: 'Structural Mass Exceeded',
+      desc: `Total mass (${massSum.toLocaleString()} kg) exceeds ${vehicle.name} payload limit.`,
+      action: 'Upgrade to Falcon Heavy',
+      fix: () => {
+        STATE.vehicle = 'falconheavy';
+        DOM.vehicleCards.forEach(c => c.classList.toggle('active', c.dataset.vehicle === 'falconheavy'));
+        updateAll();
+      }
+    });
+  }
+
+  if (netPower < 0) {
+    STATE.advisorWarnings.push({
+      type: 'critical',
+      title: 'Power Bus Deficit',
+      desc: `Net deficit of ${Math.abs(netPower)}W. In deep space this depletes battery buffers.`,
+      action: 'Equip UltraFlex Wings',
+      fix: () => {
+        STATE.equipped.add('solar-ultraflex');
+        renderSubsystems(STATE.activeCategory);
+        updateAll();
+      }
+    });
+  }
+
+  if (mission.id === 'leo' && STATE.equipped.has('rtg-plutonium')) {
+    STATE.advisorWarnings.push({
+      type: 'warn',
+      title: 'RTG Unnecessary in LEO',
+      desc: 'Plutonium-238 adds radioactive launch risk and mass penalty in Earth orbit where solar irradiance is nominal.',
+      action: 'Replace with UltraFlex Solar Wings',
+      fix: () => {
+        STATE.equipped.delete('rtg-plutonium');
+        STATE.equipped.add('solar-ultraflex');
+        renderSubsystems(STATE.activeCategory);
+        updateAll();
+      }
+    });
+  }
+
+  if (mission.id === 'mars' && STATE.equipped.has('solar-ultraflex') && !STATE.equipped.has('rtg-plutonium')) {
+    STATE.advisorWarnings.push({
+      type: 'warn',
+      title: 'Solar Degradation at Mars Distance',
+      desc: 'Solar flux drops to 43% at 1.52 AU. Umbra shadow transit will deplete battery buffers.',
+      action: 'Equip Plutonium RTG',
+      fix: () => {
+        STATE.equipped.add('rtg-plutonium');
+        renderSubsystems(STATE.activeCategory);
+        updateAll();
+      }
+    });
+  }
+
+  if (!isCommsOk) {
+    STATE.advisorWarnings.push({
+      type: 'warn',
+      title: 'No Telecommunications Antenna',
+      desc: 'Ground stations cannot establish carrier lock or receive high-resolution instrument telemetry.',
+      action: 'Equip Ka-Band Antenna',
+      fix: () => {
+        STATE.equipped.add('antenna-kaband');
+        renderSubsystems(STATE.activeCategory);
+        updateAll();
+      }
+    });
+  }
+
+  // Update Badge
+  const count = STATE.advisorWarnings.length;
+  DOM.advisorBadge.textContent = count;
+  DOM.advisorBadge.style.display = count > 0 ? 'inline-block' : 'none';
+
+  if (count === 0) {
+    DOM.advisorSummary.textContent = 'All subsystems verified nominal. No constraint violations.';
+  } else {
+    DOM.advisorSummary.textContent = `${count} unresolved flight advisory ${count === 1 ? 'warning' : 'warnings'}.`;
+  }
+
+  // Render Alerts
+  DOM.advisorAlertsList.textContent = '';
   const frag = document.createDocumentFragment();
 
-  function pushLog(msg, type) {
-    const row = document.createElement('div');
-    row.className = 'adv-msg ' + (type || 'system');
-    row.textContent = msg;
-    frag.appendChild(row);
-  }
+  STATE.advisorWarnings.forEach(w => {
+    const card = document.createElement('div');
+    card.className = `advisor-alert-card ${w.type}`;
+    card.innerHTML = `
+      <div class="alert-title">${w.type === 'critical' ? 'CRITICAL' : 'WARNING'}: ${w.title}</div>
+      <div class="alert-desc">${w.desc}</div>
+    `;
+    if (w.action && w.fix) {
+      const fixBtn = document.createElement('button');
+      fixBtn.className = 'btn btn-secondary btn-xs alert-fix-btn';
+      fixBtn.textContent = `⚡ Auto-Fix: ${w.action}`;
+      fixBtn.addEventListener('click', () => {
+        w.fix();
+        showToast(`Auto-fix applied: ${w.action}`);
+      });
+      card.appendChild(fixBtn);
+    }
+    frag.appendChild(card);
+  });
 
-  if (items.length === 0) {
-    pushLog('> DIAGNOSTIC: Zero subsystems equipped. Avionics bus idling.', 'system');
-    DOM.advisorLog.appendChild(frag);
-    return;
-  }
-
-  pushLog(`> MISSION PROFILE: ${mission.name} | VEHICLE: ${vehicle.name}`, 'system');
-
-  // Structural & Mass Check
-  if (totalMass > vehicle.mass) {
-    const delta = totalMass - vehicle.mass;
-    pushLog(`> CRITICAL: Payload mass (${totalMass.toLocaleString()} kg) exceeds ${vehicle.name} limit by ${delta.toLocaleString()} kg. De-orbit trajectory impossible.`, 'critical');
-  } else {
-    const margin = ((1 - totalMass / vehicle.mass) * 100).toFixed(1);
-    pushLog(`> NOMINAL: Structural mass envelope verified. Launch vehicle payload margin: ${margin}%.`, 'nominal');
-  }
-
-  // Power Balance Check
-  if (netPower < 0) {
-    pushLog('> WARNING: Power deficit detected. Deep space missions cannot rely on battery reserves. Equip RTGs or expand Solar Arrays.', 'warn');
-  } else if (netPower === 0) {
-    pushLog('> ADVISORY: Net power zero margin. No reserve available for transmitter bursts or safe mode survival.', 'advisory');
-  } else {
-    pushLog(`> NOMINAL: Power surplus +${netPower}W. Steady-state generation covers peak instrument draw.`, 'nominal');
-  }
-
-  // Downlink Check
-  if (netThroughput < mission.targetData) {
-    pushLog('> ADVISORY: Downlink bandwidth insufficient for high-res telemetry. Upgrade to Ka-Band High-Gain Antenna.', 'advisory');
-  }
-
-  // Contextual Engineering Rules
-  const hasRtg = STATE.equipped.has('rtg-plutonium');
-  const hasSolar = STATE.equipped.has('solar-ultraflex');
-  const hasBattery = STATE.equipped.has('battery-liion');
-  const hasIon = STATE.equipped.has('thruster-ion');
-
-  if (mission.type === 'leo' && hasRtg) {
-    pushLog('> WARNING: RTGs add unnecessary mass and radioactive risk in LEO where solar irradiance is nominal.', 'warn');
-  }
-
-  if (mission.type === 'mars' && hasSolar && !hasRtg) {
-    pushLog('> ADVISORY: Eclipse corridor modeled. Battery buffer insufficient for 35m Umbra transit. RTG recommended for continuous thermal decay conversion.', 'advisory');
-  }
-
-  if (hasIon && netPower < 280) {
-    pushLog('> WARNING: NEXT-C ion thruster requires high voltage bus. Current power generation limits continuous duty cycle.', 'warn');
-  }
-
-  // Verification
-  if (STATE.launchReady) {
-    pushLog('> ✓ FLIGHT DIRECTIVE: All primary systems nominal. Stage-0 launch sequencer armed.', 'nominal');
-  }
-
-  DOM.advisorLog.appendChild(frag);
-  DOM.advisorLog.scrollTop = DOM.advisorLog.scrollHeight;
+  DOM.advisorAlertsList.appendChild(frag);
 }
 
-// ── SVG CHASSIS HIGHLIGHTS ──
-function updateChassisSvgHighlights() {
-  const solarL = document.getElementById('svg-solar-l');
-  const solarR = document.getElementById('svg-solar-r');
-  const antenna = document.getElementById('svg-antenna');
-  const thruster = document.getElementById('svg-thruster');
-  const instruments = document.getElementById('svg-instruments');
-  const leadersGroup = document.getElementById('svg-leaders');
+// ── LIVE MATHEMATICAL DERIVATIONS & KATEX (Step 5) ──
+function updateMathPanel(massSum, vehicle, mission, ispAvg, netPower, items) {
+  const g0 = 9.80665;
+  const m0 = vehicle.mass + massSum;
+  const mf = massSum > 0 ? massSum : 1;
+  const massRatio = (m0 / mf);
+  const tsiolkovskyDv = Math.round(ispAvg * g0 * Math.log(massRatio));
 
+  const muEarth = 3.986004418e14; // m^3/s^2
+  const rMeters = mission.semiMajorAxisKm * 1000;
+  const vOrb = Math.sqrt(muEarth / rMeters); // for circular
+  const keplerPeriodSec = 2 * Math.PI * Math.sqrt(Math.pow(rMeters, 3) / muEarth);
+  const keplerPeriodMin = (keplerPeriodSec / 60).toFixed(1);
+
+  // Update Live Text Values
+  DOM.mathM0.textContent = m0.toLocaleString() + ' kg';
+  DOM.mathMf.textContent = mf.toLocaleString() + ' kg';
+  DOM.mathIsp.textContent = ispAvg + ' s';
+  DOM.mathDvRes.textContent = tsiolkovskyDv.toLocaleString() + ' m/s';
+  DOM.mathR.textContent = mission.semiMajorAxisKm.toLocaleString() + ' km';
+  DOM.mathVorb.textContent = (vOrb / 1000).toFixed(3) + ' km/s';
+  DOM.mathSma.textContent = mission.semiMajorAxisKm.toLocaleString() + ' km';
+  DOM.mathPeriod.textContent = keplerPeriodMin + ' min';
+
+  // KaTeX live rendering (with offline text fallback)
+  if (window.katex) {
+    try {
+      katex.render(`\\Delta v = I_{\\text{sp}} g_0 \\ln\\left(\\frac{m_0}{m_f}\\right) = ${ispAvg} \\times 9.81 \\times \\ln\\left(${massRatio.toFixed(1)}\\right) = ${tsiolkovskyDv}\\text{ m/s}`, DOM.katexTsiolkovsky, { throwOnError: false });
+      katex.render(`v = \\sqrt{\\mu \\left(\\frac{2}{r} - \\frac{1}{a}\\right)} = ${(vOrb/1000).toFixed(3)}\\text{ km/s}`, DOM.katexVisviva, { throwOnError: false });
+      katex.render(`T = 2\\pi \\sqrt{\\frac{a^3}{\\mu}} = ${keplerPeriodMin}\\text{ minutes}`, DOM.katexKepler3, { throwOnError: false });
+      katex.render(`\\Delta v_{\\text{tot}} = \\Delta v_1 + \\Delta v_2 = ${mission.dvReq}\\text{ m/s}`, DOM.katexHohmann, { throwOnError: false });
+      katex.render(`P_{\\text{net}} = \\sum P_{\\text{gen}} - \\sum P_{\\text{load}} = ${netPower}\\text{ W}`, DOM.katexPower, { throwOnError: false });
+    } catch (e) {}
+  }
+
+  // Draw Tsiolkovsky curve canvas
+  drawTsiolkovskyCurve(massRatio, ispAvg * g0);
+
+  // Power breakdown table
+  DOM.mathPowerBreakdown.textContent = '';
+  const pFrag = document.createDocumentFragment();
+
+  items.forEach(i => {
+    if (i.power !== 0) {
+      const row = document.createElement('div');
+      row.className = 'power-item ' + (i.power > 0 ? 'gen' : 'load');
+      row.innerHTML = `<span>${i.power > 0 ? '+' : '-'} ${i.name}:</span><strong class="mono">${i.power > 0 ? '+' : ''}${i.power} W</strong>`;
+      pFrag.appendChild(row);
+    }
+  });
+
+  const totRow = document.createElement('div');
+  totRow.className = 'power-item total';
+  totRow.innerHTML = `<span>NET POWER MARGIN:</span><strong class="mono">${netPower >= 0 ? '+' : ''}${netPower} W</strong>`;
+  pFrag.appendChild(totRow);
+
+  DOM.mathPowerBreakdown.appendChild(pFrag);
+}
+
+// ── TSIOLKOVSKY MASS-RATIO CURVE ──
+function drawTsiolkovskyCurve(currentRatio, ve) {
+  const canvas = DOM.tsiolkovskyCanvas;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Axes
+  ctx.strokeStyle = '#E2E8F0';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(30, 10); ctx.lineTo(30, h - 20);
+  ctx.lineTo(w - 10, h - 20);
+  ctx.stroke();
+
+  // Curve (ln curve)
+  ctx.strokeStyle = '#0284C7';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+
+  for (let px = 30; px <= w - 10; px += 2) {
+    const ratio = 1 + ((px - 30) / (w - 40)) * 50; // 1 to 50
+    const dvVal = Math.log(ratio);
+    const py = (h - 20) - (dvVal / Math.log(50)) * (h - 30);
+    if (px === 30) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  // Mark current design
+  const clampRatio = Math.min(50, Math.max(1, currentRatio));
+  const curX = 30 + ((clampRatio - 1) / 49) * (w - 40);
+  const curY = (h - 20) - (Math.log(clampRatio) / Math.log(50)) * (h - 30);
+
+  ctx.fillStyle = '#DC2626';
+  ctx.beginPath();
+  ctx.arc(curX, curY, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#64748B';
+  ctx.font = "8px 'JetBrains Mono', monospace";
+  ctx.fillText('m0/mf = ' + currentRatio.toFixed(1), curX - 15, Math.max(12, curY - 8));
+}
+
+// ── CHASSIS CAD HIGHLIGHTS ──
+function updateCadHighlights() {
   const hasSolar = STATE.equipped.has('solar-ultraflex');
   const hasAntenna = STATE.equipped.has('antenna-kaband') || STATE.equipped.has('antenna-xband');
   const hasThruster = STATE.equipped.has('thruster-coldgas') || STATE.equipped.has('thruster-biprop') || STATE.equipped.has('thruster-ion');
   const hasInst = STATE.equipped.has('imager-hires') || STATE.equipped.has('spectrometer-mass') || STATE.equipped.has('radar-sar');
 
+  const solarL = document.getElementById('cad-solar-l');
+  const solarR = document.getElementById('cad-solar-r');
+  const antenna = document.getElementById('cad-antenna');
+  const thruster = document.getElementById('cad-thruster');
+  const inst = document.getElementById('cad-instrument');
+
   if (solarL) solarL.classList.toggle('active', hasSolar);
   if (solarR) solarR.classList.toggle('active', hasSolar);
   if (antenna) antenna.classList.toggle('active', hasAntenna);
   if (thruster) thruster.classList.toggle('active', hasThruster);
-  if (instruments) instruments.classList.toggle('active', hasInst);
-
-  if (leadersGroup) {
-    leadersGroup.textContent = '';
-    const frag = document.createDocumentFragment();
-
-    const tags = [
-      { show: hasSolar, text: 'ULTRAFLEX WINGS', x: 60, y: 110 },
-      { show: hasAntenna, text: 'KA-BAND REFLECTOR', x: 270, y: 65 },
-      { show: hasInst, text: 'OPTICAL SENSOR BAY', x: 380, y: 140 },
-      { show: hasThruster, text: 'RCS ATTITUDE CLUSTER', x: 310, y: 220 }
-    ];
-
-    tags.forEach(t => {
-      if (t.show) {
-        const textNode = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        textNode.setAttribute('x', t.x);
-        textNode.setAttribute('y', t.y);
-        textNode.setAttribute('fill', '#00F0FF');
-        textNode.setAttribute('font-size', '9');
-        textNode.setAttribute('font-family', "'JetBrains Mono', monospace");
-        textNode.setAttribute('text-anchor', 'middle');
-        textNode.textContent = t.text;
-        frag.appendChild(textNode);
-      }
-    });
-
-    leadersGroup.appendChild(frag);
-  }
+  if (inst) inst.classList.toggle('active', hasInst);
 }
 
-// ── 8-BALL NAVBALL ATTITUDE INDICATOR (Canvas) ──
+// ── RUNGE-KUTTA 4TH ORDER ORBITAL PROPAGATOR (Step 4) ──
+function rk4Step(dt) {
+  const mu = 3.986004418e14; // m^3/s^2 Earth gravity parameter
+
+  function accel(pos) {
+    const rMag = Math.hypot(pos[0], pos[1]);
+    const factor = -mu / Math.pow(rMag, 3);
+    return [pos[0] * factor, pos[1] * factor];
+  }
+
+  const s = STATE.rk4State;
+  const p0 = s.r;
+  const v0 = s.v;
+
+  // k1
+  const k1_v = accel(p0);
+  const k1_p = v0;
+
+  // k2
+  const p1 = [p0[0] + 0.5 * dt * k1_p[0], p0[1] + 0.5 * dt * k1_p[1]];
+  const v1 = [v0[0] + 0.5 * dt * k1_v[0], v0[1] + 0.5 * dt * k1_v[1]];
+  const k2_v = accel(p1);
+  const k2_p = v1;
+
+  // k3
+  const p2 = [p0[0] + 0.5 * dt * k2_p[0], p0[1] + 0.5 * dt * k2_p[1]];
+  const v2 = [v0[0] + 0.5 * dt * k2_v[0], v0[1] + 0.5 * dt * k2_v[1]];
+  const k3_v = accel(p2);
+  const k3_p = v2;
+
+  // k4
+  const p3 = [p0[0] + dt * k3_p[0], p0[1] + dt * k3_p[1]];
+  const v3 = [v0[0] + dt * k3_v[0], v0[1] + dt * k3_v[1]];
+  const k4_v = accel(p3);
+  const k4_p = v3;
+
+  // Final update
+  s.r = [
+    p0[0] + (dt / 6) * (k1_p[0] + 2 * k2_p[0] + 2 * k3_p[0] + k4_p[0]),
+    p0[1] + (dt / 6) * (k1_p[1] + 2 * k2_p[1] + 2 * k3_p[1] + k4_p[1])
+  ];
+  s.v = [
+    v0[0] + (dt / 6) * (k1_v[0] + 2 * k2_v[0] + 2 * k3_v[0] + k4_v[0]),
+    v0[1] + (dt / 6) * (k1_v[1] + 2 * k2_v[1] + 2 * k3_v[1] + k4_v[1])
+  ];
+
+  // Record trail
+  s.trail.push([s.r[0], s.r[1]]);
+  if (s.trail.length > 90) s.trail.shift();
+}
+
+// ── ORBIT HUD CANVAS RENDER ──
+function drawOrbitHud() {
+  const canvas = DOM.orbitHudCanvas;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Concentric radar grid
+  ctx.strokeStyle = 'rgba(0, 240, 255, 0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 40, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 85, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Outer dashed ring
+  ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.arc(cx, cy, 120, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Cross axes
+  ctx.beginPath();
+  ctx.moveTo(cx, 0); ctx.lineTo(cx, h);
+  ctx.moveTo(0, cy); ctx.lineTo(w, cy);
+  ctx.stroke();
+
+  // Earth body (Center)
+  ctx.fillStyle = '#2563EB';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Fading trail from RK4 simulation
+  const scale = 85 / 6871000;
+  if (STATE.rk4State.trail.length > 1) {
+    ctx.lineWidth = 1.5;
+    for (let i = 1; i < STATE.rk4State.trail.length; i++) {
+      const alpha = (i / STATE.rk4State.trail.length) * 0.7;
+      ctx.strokeStyle = `rgba(0, 240, 255, ${alpha})`;
+      ctx.beginPath();
+      const p1 = STATE.rk4State.trail[i - 1];
+      const p2 = STATE.rk4State.trail[i];
+      ctx.moveTo(cx + p1[0] * scale, cy + p1[1] * scale);
+      ctx.lineTo(cx + p2[0] * scale, cy + p2[1] * scale);
+      ctx.stroke();
+    }
+  }
+
+  // Active Spacecraft marker
+  const sPos = STATE.rk4State.r;
+  const craftX = cx + sPos[0] * scale;
+  const craftY = cy + sPos[1] * scale;
+
+  ctx.shadowColor = '#00F0FF';
+  ctx.shadowBlur = 8;
+  ctx.fillStyle = '#00F0FF';
+  ctx.beginPath();
+  ctx.arc(craftX, craftY, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Rotating Reticle
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(STATE.simAngle * 0.5);
+  ctx.strokeStyle = 'rgba(0, 240, 255, 0.6)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (i * Math.PI) / 3;
+    const x = Math.cos(a) * 14;
+    const y = Math.sin(a) * 14;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ── NAVBALL 8-BALL CANVAS ──
 function drawNavball() {
   const canvas = DOM.navballCanvas;
   if (!canvas) return;
@@ -794,54 +1232,37 @@ function drawNavball() {
 
   ctx.clearRect(0, 0, w, h);
 
-  // Time-based pitch and roll simulation
-  const time = Date.now() * 0.001;
-  const pitchAngle = Math.sin(time * 0.8) * 12 + 12.4; // +12.4 deg average
-  const rollAngle = Math.cos(time * 0.5) * 4;
+  const t = Date.now() * 0.001;
+  const pitch = Math.sin(t * 0.8) * 10 + 12.4;
+  const roll = Math.cos(t * 0.5) * 3;
 
   ctx.save();
-  // Clip to circle
   ctx.beginPath();
   ctx.arc(r, r, r - 2, 0, Math.PI * 2);
   ctx.clip();
 
-  // Rotate for roll
   ctx.translate(r, r);
-  ctx.rotate((rollAngle * Math.PI) / 180);
+  ctx.rotate((roll * Math.PI) / 180);
+  const pOffset = (pitch / 90) * (r * 0.7);
 
-  // Shift for pitch
-  const pitchOffset = (pitchAngle / 90) * (r * 0.7);
-
-  // Sky hemisphere (top, cyan-blue)
+  // Sky (blue)
   ctx.fillStyle = '#0284C7';
-  ctx.fillRect(-r * 2, -r * 2 + pitchOffset, r * 4, r * 2);
+  ctx.fillRect(-r * 2, -r * 2 + pOffset, r * 4, r * 2);
 
-  // Ground hemisphere (bottom, dark navy-slate)
+  // Ground (slate)
   ctx.fillStyle = '#0F172A';
-  ctx.fillRect(-r * 2, pitchOffset, r * 4, r * 2);
+  ctx.fillRect(-r * 2, pOffset, r * 4, r * 2);
 
-  // Artificial horizon line
+  // Horizon
   ctx.strokeStyle = '#FFFFFF';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.moveTo(-r, pitchOffset);
-  ctx.lineTo(r, pitchOffset);
+  ctx.moveTo(-r, pOffset);
+  ctx.lineTo(r, pOffset);
   ctx.stroke();
-
-  // Pitch ladder markings
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-  ctx.lineWidth = 1;
-  [-20, -10, 10, 20].forEach(deg => {
-    const y = pitchOffset - (deg / 90) * (r * 0.7);
-    ctx.beginPath();
-    ctx.moveTo(-10, y);
-    ctx.lineTo(10, y);
-    ctx.stroke();
-  });
 
   ctx.restore();
 
-  // Outer sphere border
   ctx.strokeStyle = '#00F0FF';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
@@ -849,13 +1270,60 @@ function drawNavball() {
   ctx.stroke();
 
   if (DOM.navballReadout) {
-    DOM.navballReadout.textContent = `PITCH: ${pitchAngle >= 0 ? '+' : ''}${pitchAngle.toFixed(1)}° | ROLL: ${rollAngle >= 0 ? '+' : ''}${rollAngle.toFixed(1)}°`;
+    DOM.navballReadout.textContent = `PITCH: ${pitch.toFixed(1)}°`;
   }
 }
 
-// ── ORBIT TRAJECTORY HUD CANVAS ANIMATION ──
-function drawOrbitHud() {
-  const canvas = DOM.orbitCanvas;
+// ── KEPLER'S 2ND LAW & CONIC CANVAS ──
+function drawKeplerConic() {
+  const canvas = DOM.conicTransferCanvas;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = 100;
+  const cy = h / 2;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Earth
+  ctx.fillStyle = '#2563EB';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Equal-area sweep sector (Kepler's 2nd law visual demonstration)
+  const sweepAngle = (STATE.simAngle * 0.8) % (Math.PI * 2);
+  const deltaA = 0.35; // sector angle
+  ctx.fillStyle = 'rgba(2, 132, 199, 0.18)';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, 140, sweepAngle, sweepAngle + deltaA);
+  ctx.closePath();
+  ctx.fill();
+
+  // Dashed transfer ellipse
+  ctx.strokeStyle = '#0284C7';
+  ctx.lineWidth = 1.4;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.ellipse(280, cy, 180, 50, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Spacecraft traveling on ellipse
+  const sX = 280 + Math.cos(sweepAngle) * 180;
+  const sY = cy + Math.sin(sweepAngle) * 50;
+
+  ctx.fillStyle = '#0284C7';
+  ctx.beginPath();
+  ctx.arc(sX, sY, 4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ── MISSION VIEW PREVIEW CANVAS ──
+function drawMissionPreview() {
+  const canvas = DOM.missionPreviewCanvas;
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const w = canvas.width;
@@ -865,345 +1333,250 @@ function drawOrbitHud() {
 
   ctx.clearRect(0, 0, w, h);
 
-  // Tactical Radar Grid Lines
-  ctx.strokeStyle = 'rgba(0, 240, 255, 0.08)';
-  ctx.lineWidth = 1;
+  // Center Earth
+  ctx.fillStyle = '#2563EB';
   ctx.beginPath();
-  ctx.moveTo(cx, 0);
-  ctx.lineTo(cx, h);
-  ctx.moveTo(0, cy);
-  ctx.lineTo(w, cy);
-  ctx.stroke();
-
-  // Concentric Radar Orbit Rings
-  const radii = [45, 90, 130];
-  radii.forEach((r, idx) => {
-    ctx.strokeStyle = idx === 1 ? 'rgba(0, 240, 255, 0.45)' : 'rgba(0, 240, 255, 0.18)';
-    ctx.lineWidth = idx === 1 ? 1.5 : 1;
-    ctx.beginPath();
-    if (idx === 2) {
-      ctx.setLineDash([4, 4]);
-    } else {
-      ctx.setLineDash([]);
-    }
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  });
-
-  // Degree markings at ring 90
-  ctx.fillStyle = 'rgba(0, 240, 255, 0.6)';
-  ctx.font = "8px 'JetBrains Mono', monospace";
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('0°', cx + 90, cy - 8);
-  ctx.fillText('90°', cx, cy + 98);
-  ctx.fillText('180°', cx - 90, cy - 8);
-  ctx.fillText('270°', cx, cy - 98);
-
-  // Rotating Central Reticle
-  const reticleAngle = STATE.animationAngle * 0.4;
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(reticleAngle);
-  ctx.strokeStyle = 'rgba(0, 240, 255, 0.8)';
-  ctx.lineWidth = 1.2;
-
-  // Draw hexagon reticle
-  ctx.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const a = (i * Math.PI) / 3;
-    const x = Math.cos(a) * 16;
-    const y = Math.sin(a) * 16;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-  ctx.stroke();
-
-  // Center cross
-  ctx.beginPath();
-  ctx.moveTo(-6, 0); ctx.lineTo(6, 0);
-  ctx.moveTo(0, -6); ctx.lineTo(0, 6);
-  ctx.stroke();
-  ctx.restore();
-
-  // Orbiting Spacecraft Marker on Main Ring (r=90)
-  const craftAngle = STATE.animationAngle;
-  const craftX = cx + Math.cos(craftAngle) * 90;
-  const craftY = cy + Math.sin(craftAngle) * 90;
-
-  // Spacecraft glowing dot
-  ctx.shadowColor = '#00F0FF';
-  ctx.shadowBlur = 10;
-  ctx.fillStyle = '#00F0FF';
-  ctx.beginPath();
-  ctx.arc(craftX, craftY, 4, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 20, 0, Math.PI * 2);
   ctx.fill();
-  ctx.shadowBlur = 0;
 
-  // Callout leader line and tag (TGT+)
-  const tagX = craftX + 26;
-  const tagY = craftY - 18;
+  // Orbit path depending on mission
   ctx.strokeStyle = '#00F0FF';
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
   ctx.beginPath();
-  ctx.moveTo(craftX, craftY);
-  ctx.lineTo(craftX + 12, tagY);
-  ctx.lineTo(tagX + 32, tagY);
+
+  if (STATE.mission === 'leo') {
+    ctx.arc(cx, cy, 75, 0, Math.PI * 2);
+  } else if (STATE.mission === 'lunar') {
+    ctx.ellipse(cx, cy, 150, 65, 0, 0, Math.PI * 2);
+  } else {
+    ctx.ellipse(cx, cy, 175, 55, 0, 0, Math.PI * 2);
+  }
   ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Craft
+  const a = STATE.simAngle;
+  let craftX, craftY;
+  if (STATE.mission === 'leo') {
+    craftX = cx + Math.cos(a) * 75;
+    craftY = cy + Math.sin(a) * 75;
+  } else if (STATE.mission === 'lunar') {
+    craftX = cx + Math.cos(a) * 150;
+    craftY = cy + Math.sin(a) * 65;
+  } else {
+    craftX = cx + Math.cos(a) * 175;
+    craftY = cy + Math.sin(a) * 55;
+  }
 
   ctx.fillStyle = '#00F0FF';
-  ctx.font = "8.5px 'JetBrains Mono', monospace";
-  ctx.textAlign = 'left';
-  ctx.fillText('TGT+ RAD', craftX + 16, tagY - 3);
-}
-
-// ── MATHEMATICAL PREDICTED CONIC CANVAS ANIMATION ──
-function drawConicCurve() {
-  const canvas = DOM.conicCanvas;
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width;
-  const h = canvas.height;
-
-  ctx.clearRect(0, 0, w, h);
-
-  // Background subtle grid
-  ctx.strokeStyle = '#E2E8F0';
-  ctx.lineWidth = 0.5;
-  for (let x = 0; x < w; x += 30) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-  }
-  for (let y = 0; y < h; y += 30) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-  }
-
-  // Earth Sphere (on left)
-  const earthX = 85;
-  const earthY = h / 2;
-  const earthR = 24;
-
-  // Earth Glow
-  const glow = ctx.createRadialGradient(earthX, earthY, earthR, earthX, earthY, earthR + 15);
-  glow.addColorStop(0, 'rgba(37, 99, 235, 0.4)');
-  glow.addColorStop(1, 'rgba(37, 99, 235, 0)');
-  ctx.fillStyle = glow;
   ctx.beginPath();
-  ctx.arc(earthX, earthY, earthR + 15, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Earth Body
-  const earthGrad = ctx.createRadialGradient(earthX - 6, earthY - 6, 2, earthX, earthY, earthR);
-  earthGrad.addColorStop(0, '#60A5FA');
-  earthGrad.addColorStop(0.7, '#2563EB');
-  earthGrad.addColorStop(1, '#1E3A8A');
-  ctx.fillStyle = earthGrad;
-  ctx.beginPath();
-  ctx.arc(earthX, earthY, earthR, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = "8px 'JetBrains Mono', monospace";
-  ctx.textAlign = 'center';
-  ctx.fillText('EARTH', earthX, earthY + 3);
-
-  // Conic Elliptical Trajectory
-  ctx.save();
-  ctx.strokeStyle = '#0284C7';
-  ctx.lineWidth = 1.6;
-  ctx.setLineDash([5, 4]);
-
-  ctx.beginPath();
-  ctx.ellipse(260, earthY, 175, 48, -0.05, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-
-  // Maneuver Node 01: Injection
-  const node1X = 230;
-  const node1Y = earthY - 45;
-  ctx.fillStyle = '#F59E0B';
-  ctx.beginPath();
-  ctx.arc(node1X, node1Y, 4, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#D97706';
-  ctx.font = "8.5px 'JetBrains Mono', monospace";
-  ctx.textAlign = 'left';
-  ctx.fillText('NODE 01: INJECTION', node1X + 8, node1Y - 4);
-
-  // Delta-V Vector Arrow
-  ctx.strokeStyle = '#F59E0B';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.moveTo(node1X, node1Y);
-  ctx.lineTo(node1X + 22, node1Y - 14);
-  ctx.stroke();
-
-  // Maneuver Node 02: Orbit Circ
-  const node2X = 390;
-  const node2Y = earthY + 28;
-  ctx.fillStyle = '#10B981';
-  ctx.beginPath();
-  ctx.arc(node2X, node2Y, 4, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#059669';
-  ctx.font = "8.5px 'JetBrains Mono', monospace";
-  ctx.fillText('NODE 02: ORBIT CIRC', node2X + 8, node2Y + 12);
-
-  // Animated Satellite tracking on conic
-  const conicT = (STATE.animationAngle * 0.7) % (Math.PI * 2);
-  const craftX = 260 + Math.cos(conicT) * 175;
-  const craftY = earthY + Math.sin(conicT) * 48;
-
-  ctx.fillStyle = '#0284C7';
-  ctx.beginPath();
-  ctx.arc(craftX, craftY, 4, 0, Math.PI * 2);
+  ctx.arc(craftX, craftY, 4.5, 0, Math.PI * 2);
   ctx.fill();
 }
 
-// ── MASTER 60 FPS RENDER LOOP ──
-function renderLoop() {
-  // Advance animation angle driven by time-warp
-  const speed = 0.015 * Math.min(10, Math.max(1, Math.log10(STATE.timeWarp) + 1));
-  STATE.animationAngle += speed;
-  if (STATE.animationAngle > Math.PI * 2) {
-    STATE.animationAngle -= Math.PI * 2;
+// ── MASTER 60 FPS ANIMATION & PHYSICS INTEGRATION LOOP ──
+function masterLoop(now) {
+  if (document.hidden) {
+    requestAnimationFrame(masterLoop);
+    return;
   }
 
-  drawOrbitHud();
-  drawNavball();
-  drawConicCurve();
+  const dtSec = Math.min(0.1, (now - STATE.lastFrameTime) / 1000);
+  STATE.lastFrameTime = now;
 
-  requestAnimationFrame(renderLoop);
+  // Fixed-timestep integration for astrodynamics
+  const effectiveDt = dtSec * STATE.timeWarp * 5;
+  rk4Step(effectiveDt);
+
+  STATE.simAngle += dtSec * 0.8 * Math.min(8, Math.max(1, Math.log10(STATE.timeWarp) + 1));
+
+  // Render active canvases
+  if (STATE.currentView === '01') {
+    drawMissionPreview();
+  } else if (STATE.currentView === '04') {
+    drawOrbitHud();
+    drawNavball();
+    drawKeplerConic();
+  }
+
+  requestAnimationFrame(masterLoop);
 }
 
-// ── REALTIME CLOCKS TICK ──
-function updateClocks() {
-  // 1. Mission Elapsed Time (ticking live)
+// ── LIVE MET & UTC CLOCK UPDATES ──
+function tickClocks() {
   const elapsedSec = Math.floor((Date.now() - STATE.metStartTime) / 1000) + STATE.metOffsetSec;
   const days = Math.floor(elapsedSec / 86400);
   const hours = Math.floor((elapsedSec % 86400) / 3600);
   const mins = Math.floor((elapsedSec % 3600) / 60);
   const secs = elapsedSec % 60;
+  const metStr = `T+${String(days).padStart(3, '0')}:${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 
-  DOM.metClock.textContent = `T+${String(days).padStart(3, '0')}:${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  if (DOM.ambientMet) DOM.ambientMet.textContent = metStr;
 
-  // 2. UTC Reference with ms
   const now = new Date();
   const year = now.getUTCFullYear();
-  const startYear = new Date(Date.UTC(year, 0, 1));
-  const dayOfYear = Math.floor((now - startYear) / 86400000) + 1;
-  const utcHours = String(now.getUTCHours()).padStart(2, '0');
-  const utcMins = String(now.getUTCMinutes()).padStart(2, '0');
-  const utcSecs = String(now.getUTCSeconds()).padStart(2, '0');
-  const utcMs = String(now.getUTCMilliseconds()).padStart(3, '0');
+  const start = new Date(Date.UTC(year, 0, 1));
+  const doy = Math.floor((now - start) / 86400000) + 1;
+  const utcStr = `${year}-${String(doy).padStart(3, '0')} // ${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}:${String(now.getUTCSeconds()).padStart(2, '0')}`;
 
-  DOM.utcClock.textContent = `${year}-${String(dayOfYear).padStart(3, '0')} // ${utcHours}:${utcMins}:${utcSecs}.${utcMs}`;
+  if (DOM.ambientUtc) DOM.ambientUtc.textContent = utcStr;
 }
 
-// ── LAUNCH EXECUTION SEQUENCE ──
-function executeLaunch() {
+// ── HOLD-TO-CONFIRM LAUNCH CONTROLLER (Step 3) ──
+let holdTimer = null;
+let holdStart = 0;
+const HOLD_DURATION = 1000; // 1 second
+
+function startHoldLaunch(e) {
   if (!STATE.launchReady) {
-    sfxError();
+    sfxWarn();
+    showToast('Cannot launch: resolve pre-flight checklist violations.');
     return;
   }
-  sfxLaunch();
+  e.preventDefault();
+  holdStart = Date.now();
+  holdTimer = requestAnimationFrame(stepHoldLaunch);
+}
 
-  DOM.launchOverlay.classList.remove('hidden');
+function stepHoldLaunch() {
+  const elapsed = Date.now() - holdStart;
+  const ratio = Math.min(1, elapsed / HOLD_DURATION);
+
+  // Circumference = 2 * PI * 54 = 339.29
+  const offset = 339.29 * (1 - ratio);
+  DOM.holdRingFill.style.strokeDashoffset = offset;
+
+  if (ratio >= 1) {
+    cancelAnimationFrame(holdTimer);
+    holdTimer = null;
+    DOM.holdRingFill.style.strokeDashoffset = 339.29;
+    executeCinematicLaunch();
+  } else {
+    holdTimer = requestAnimationFrame(stepHoldLaunch);
+  }
+}
+
+function cancelHoldLaunch() {
+  if (holdTimer) {
+    cancelAnimationFrame(holdTimer);
+    holdTimer = null;
+  }
+  DOM.holdRingFill.style.strokeDashoffset = 339.29;
+}
+
+// ── CINEMATIC LAUNCH SEQUENCE (Step 4) ──
+function executeCinematicLaunch() {
+  sfxLaunch();
+  DOM.cinematicOverlay.classList.remove('hidden');
+
   const mission = MISSIONS[STATE.mission];
   const vehicle = VEHICLES[STATE.vehicle];
 
-  DOM.launchTargetDesc.textContent = `${mission.name.toUpperCase()} ON ${vehicle.name.toUpperCase()}`;
-  DOM.launchProgressFill.style.width = '0%';
+  const stages = [
+    { label: 'STAGE-0 IGNITION', text: 'T-10', sub: `${vehicle.name} MAIN ENGINES START`, progress: 10 },
+    { label: 'LIFTOFF', text: 'T-00', sub: 'TOWER CLEARED // ROLL PROGRAM COMMENCED', progress: 30 },
+    { label: 'MAX-Q', text: 'T+01:12', sub: 'MAXIMUM AERODYNAMIC DYNAMIC PRESSURE', progress: 55 },
+    { label: 'MECO & STAGING', text: 'T+02:34', sub: 'STAGE 1 SEPARATION // VACUUM ENGINE IGNITION', progress: 75 },
+    { label: 'PAYLOAD FAIRING JETTISON', text: 'T+03:15', sub: 'FAIRINGS SEPARATED // ATMOSPHERE CLEARED', progress: 90 },
+    { label: 'ORBIT ACHIEVED', text: 'INSERTION', sub: `${mission.name} INSERTED INTO ${mission.vectorDesc}`, progress: 100 }
+  ];
 
-  let count = 10;
-  DOM.countdownText.textContent = 'T-10';
+  let curStage = 0;
 
-  const timer = setInterval(() => {
-    count--;
-    const progress = ((10 - count) / 10) * 100;
-    DOM.launchProgressFill.style.width = progress + '%';
-
-    if (count > 0) {
-      DOM.countdownText.textContent = 'T-' + count;
-      playTone(1200, 0.05, 'sine', 0.04);
-    } else if (count === 0) {
-      DOM.countdownText.textContent = 'LIFTOFF';
-      DOM.countdownText.style.color = '#F59E0B';
-      sfxLaunch();
-    } else if (count === -2) {
-      DOM.countdownText.textContent = 'ORBITAL INSERTION';
-      DOM.countdownText.style.color = '#00F0FF';
-      DOM.launchTargetDesc.textContent = 'TRANSTAGE TRAJECTORY NOMINAL // DSN LOCK CONFIRMED';
-    } else if (count < -4) {
-      clearInterval(timer);
-      DOM.launchOverlay.classList.add('hidden');
-      DOM.countdownText.style.color = '';
-
-      // Append success message to advisor
-      const row = document.createElement('div');
-      row.className = 'adv-msg nominal';
-      row.textContent = `> ✓ MISSION INGEST COMPLETE: ${mission.name} deployed via ${vehicle.name}. Telemetry locked.`;
-      DOM.advisorLog.appendChild(row);
-      DOM.advisorLog.scrollTop = DOM.advisorLog.scrollHeight;
+  function advanceStage() {
+    if (curStage < stages.length) {
+      const s = stages[curStage];
+      DOM.cineStageLabel.textContent = s.label;
+      DOM.cineMainText.textContent = s.text;
+      DOM.cineSubText.textContent = s.sub;
+      DOM.cineFill.style.width = s.progress + '%';
+      playTone(800 + curStage * 150, 0.08, 'triangle', 0.04);
+      curStage++;
+      setTimeout(advanceStage, 1100);
+    } else {
+      setTimeout(() => {
+        closeCinematicLaunch();
+        switchView('04'); // Camera pull-back into Orbit HUD
+        showToast('Launch Successful: Nominal Orbit Achieved.');
+      }, 900);
     }
-  }, 1000);
+  }
+
+  advanceStage();
 }
 
-// ── BIND EVENT LISTENERS & HOTKEYS ──
+function closeCinematicLaunch() {
+  DOM.cinematicOverlay.classList.add('hidden');
+}
+
+// ── BIND EVENT LISTENERS & SHORTCUTS ──
 function bindEvents() {
-  // Mission Selector
-  DOM.missionBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
+  // Navigation sidebar buttons
+  DOM.navBtns.forEach(btn => {
+    btn.addEventListener('click', () => switchView(btn.dataset.view));
+  });
+
+  // Flow back / next buttons
+  DOM.btnFlowPrev.addEventListener('click', () => {
+    const cur = parseInt(STATE.currentView, 10);
+    if (cur > 1) switchView(String(cur - 1).padStart(2, '0'));
+  });
+
+  DOM.btnFlowNext.addEventListener('click', () => {
+    const cur = parseInt(STATE.currentView, 10);
+    if (cur < 5) switchView(String(cur + 1).padStart(2, '0'));
+  });
+
+  // Step dots
+  DOM.stepDots.forEach(dot => {
+    dot.addEventListener('click', () => switchView(dot.dataset.step));
+  });
+
+  // Mission selection cards
+  DOM.missionCards.forEach(card => {
+    card.addEventListener('click', () => {
       sfxClick();
-      DOM.missionBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      STATE.mission = btn.dataset.mission;
-      updateTelemetry();
+      DOM.missionCards.forEach(c => {
+        c.classList.remove('active');
+        c.setAttribute('aria-pressed', 'false');
+      });
+      card.classList.add('active');
+      card.setAttribute('aria-pressed', 'true');
+      STATE.mission = card.dataset.mission;
+      updateAll();
     });
   });
 
-  // Vehicle Selector
-  DOM.vehicleBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
+  // Vehicle selection cards
+  DOM.vehicleCards.forEach(card => {
+    card.addEventListener('click', () => {
+      if (card.classList.contains('disabled')) {
+        sfxWarn();
+        showToast('Vehicle cannot lift current payload mass. Reduce mass first.');
+        return;
+      }
       sfxClick();
-      DOM.vehicleBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      STATE.vehicle = btn.dataset.vehicle;
-      updateTelemetry();
+      DOM.vehicleCards.forEach(c => {
+        c.classList.remove('active');
+        c.setAttribute('aria-pressed', 'false');
+      });
+      card.classList.add('active');
+      card.setAttribute('aria-pressed', 'true');
+      STATE.vehicle = card.dataset.vehicle;
+      updateAll();
     });
   });
 
-  // Outfitter Category Tabs
-  document.querySelectorAll('.out-tab').forEach(tab => {
+  // Subsystem category tabs
+  DOM.categoryTabs.forEach(tab => {
     tab.addEventListener('click', () => {
       sfxClick();
-      document.querySelectorAll('.out-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      STATE.activeTab = tab.dataset.cat;
-      renderSubsystems(STATE.activeTab);
+      renderSubsystems(tab.dataset.cat);
     });
   });
 
-  // HUD View Switcher Tabs (Chassis CAD / Orbit Trajectory)
-  document.querySelectorAll('.view-tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      sfxClick();
-      document.querySelectorAll('.view-tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      STATE.activeView = btn.dataset.view;
-
-      document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
-      const targetPanel = document.getElementById('view-' + STATE.activeView);
-      if (targetPanel) {
-        targetPanel.classList.add('active');
-      }
-    });
-  });
-
-  // Time Warp Controls
+  // Time warp buttons
   document.querySelectorAll('.warp-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       sfxClick();
@@ -1212,6 +1585,26 @@ function bindEvents() {
       STATE.timeWarp = parseInt(btn.dataset.warp, 10);
     });
   });
+
+  // Hold-to-confirm launch button
+  DOM.btnHoldLaunch.addEventListener('mousedown', startHoldLaunch);
+  DOM.btnHoldLaunch.addEventListener('touchstart', startHoldLaunch, { passive: false });
+  window.addEventListener('mouseup', cancelHoldLaunch);
+  window.addEventListener('touchend', cancelHoldLaunch);
+
+  // Popover Toggles
+  DOM.btnTelemetryPopover.addEventListener('click', () => DOM.telemetryPopover.classList.remove('hidden'));
+  DOM.btnCloseTelemetry.addEventListener('click', () => DOM.telemetryPopover.classList.add('hidden'));
+
+  DOM.btnShortcutsPopover.addEventListener('click', () => DOM.shortcutsPopover.classList.remove('hidden'));
+  DOM.btnCloseShortcuts.addEventListener('click', () => DOM.shortcutsPopover.classList.add('hidden'));
+
+  DOM.btnSources.addEventListener('click', () => DOM.sourcesModal.classList.remove('hidden'));
+  DOM.btnCloseSources.addEventListener('click', () => DOM.sourcesModal.classList.add('hidden'));
+
+  // Advisor Drawer Toggle
+  DOM.btnAdvisorToggle.addEventListener('click', () => DOM.advisorDrawer.classList.remove('hidden'));
+  DOM.btnCloseAdvisor.addEventListener('click', () => DOM.advisorDrawer.classList.add('hidden'));
 
   // Audio Toggle
   DOM.btnAudio.addEventListener('click', () => {
@@ -1227,92 +1620,100 @@ function bindEvents() {
     }
   });
 
-  // Launch Button
-  DOM.btnLaunch.addEventListener('click', executeLaunch);
-
-  // Sources Modal
-  DOM.btnSources.addEventListener('click', () => {
-    DOM.sourcesModal.classList.remove('hidden');
-  });
-  DOM.btnCloseSources.addEventListener('click', () => {
-    DOM.sourcesModal.classList.add('hidden');
-  });
-  DOM.sourcesModal.addEventListener('click', e => {
-    if (e.target === DOM.sourcesModal) {
-      DOM.sourcesModal.classList.add('hidden');
-    }
-  });
-
-  // Sidebar navigation scroll & active highlights
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', e => {
-      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
+  // Equation derivation toggles
+  document.querySelectorAll('.eq-expand-toggle').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const box = e.target.closest('.equation-box');
+      const deriv = box.querySelector('.eq-derivation');
+      if (deriv) {
+        const isHidden = deriv.classList.toggle('hidden');
+        btn.textContent = isHidden ? 'Derivation ▾' : 'Hide ▴';
+      }
     });
   });
 
-  // Keyboard Shortcuts
-  document.addEventListener('keyup', e => {
+  // Interactive Equation Variable Hover Pulse
+  document.querySelectorAll('.eq-val-tag').forEach(tag => {
+    tag.addEventListener('mouseenter', () => {
+      const target = tag.dataset.target;
+      if (target === 'mass') DOM.vitalMass.style.color = '#00F0FF';
+      if (target === 'dv') DOM.vitalDv.style.color = '#00F0FF';
+    });
+    tag.addEventListener('mouseleave', () => {
+      DOM.vitalMass.style.color = '';
+      DOM.vitalDv.style.color = '';
+    });
+  });
+
+  // Global Keyboard Shortcuts
+  document.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
 
-    // [1-3] Mission Selection
-    if (key === '1') {
-      const btn = document.querySelector('.choice-btn[data-mission="leo"]');
-      if (btn) btn.click();
-    } else if (key === '2') {
-      const btn = document.querySelector('.choice-btn[data-mission="lunar"]');
-      if (btn) btn.click();
-    } else if (key === '3') {
-      const btn = document.querySelector('.choice-btn[data-mission="mars"]');
-      if (btn) btn.click();
+    // Ctrl + Z (Undo)
+    if ((e.ctrlKey || e.metaKey) && key === 'z') {
+      e.preventDefault();
+      undoLastAction();
+      return;
     }
 
-    // [Q-T] Subsystem Dock Tabs
-    if (key === 'q') {
-      const t = document.querySelector('.out-tab[data-cat="power"]');
-      if (t) t.click();
-    } else if (key === 'w') {
-      const t = document.querySelector('.out-tab[data-cat="comms"]');
-      if (t) t.click();
-    } else if (key === 'e') {
-      const t = document.querySelector('.out-tab[data-cat="instruments"]');
-      if (t) t.click();
-    } else if (key === 'r') {
-      const t = document.querySelector('.out-tab[data-cat="propulsion"]');
-      if (t) t.click();
-    } else if (key === 't') {
-      const t = document.querySelector('.out-tab[data-cat="chassis"]');
-      if (t) t.click();
+    // Esc closes modals & drawers or skips cinematic launch
+    if (key === 'escape') {
+      DOM.telemetryPopover.classList.add('hidden');
+      DOM.shortcutsPopover.classList.add('hidden');
+      DOM.sourcesModal.classList.add('hidden');
+      DOM.advisorDrawer.classList.add('hidden');
+      if (!DOM.cinematicOverlay.classList.contains('hidden')) {
+        closeCinematicLaunch();
+        switchView('04');
+      }
+      return;
     }
 
-    // [M] Audio Mute Toggle
+    // Stage switching [1-5]
+    if (['1', '2', '3', '4', '5'].includes(key)) {
+      switchView('0' + key);
+      return;
+    }
+
+    // Category tabs [Q-T]
+    const catMap = { q: 'power', w: 'comms', e: 'instruments', r: 'propulsion', t: 'chassis' };
+    if (catMap[key]) {
+      renderSubsystems(catMap[key]);
+      return;
+    }
+
+    // Audio toggle [M]
     if (key === 'm') {
       DOM.btnAudio.click();
+      return;
     }
 
-    // [Space] Stage-0 Launch Sequencer
-    if (key === ' ') {
+    // Shortcuts help [?]
+    if (key === '?' || (e.shiftKey && key === '/')) {
+      DOM.shortcutsPopover.classList.toggle('hidden');
+      return;
+    }
+
+    // Spacebar to trigger launch if on view 05
+    if (key === ' ' && STATE.currentView === '05' && !holdTimer) {
       e.preventDefault();
-      executeLaunch();
+      startHoldLaunch(e);
+    }
+  });
+
+  document.addEventListener('keyup', e => {
+    if (e.key === ' ' && holdTimer) {
+      cancelHoldLaunch();
     }
   });
 }
 
-// ── ERROR BOUNDARY ──
-window.onerror = function (msg, src, line) {
-  if (DOM.errorScreen && DOM.errorMsg) {
-    DOM.errorMsg.textContent = `${msg} (Line ${line})`;
-    DOM.errorScreen.classList.remove('hidden');
-  }
-  return false;
-};
-
-// ── SYSTEM BOOT SEQUENCE ──
+// ── INITIAL BOOT SEQUENCE ──
 (function boot() {
-  const loader = document.getElementById('loading-skeleton');
-  const app = document.getElementById('app');
-
   setTimeout(() => {
+    const loader = document.getElementById('loading-skeleton');
+    const app = document.getElementById('app');
+
     if (loader) loader.classList.add('fade-out');
 
     setTimeout(() => {
@@ -1322,12 +1723,11 @@ window.onerror = function (msg, src, line) {
       cacheDom();
       bindEvents();
       renderSubsystems('power');
-      updateTelemetry();
-      updateChassisSvgHighlights();
+      updateAll();
 
-      // Launch 60 FPS animation loops and clocks
-      requestAnimationFrame(renderLoop);
-      setInterval(updateClocks, 50); // 20 Hz clock refresh for ms precision
-    }, 400);
-  }, 1200);
+      // Launch physics engine & tick loops
+      requestAnimationFrame(masterLoop);
+      setInterval(tickClocks, 200);
+    }, 350);
+  }, 1000);
 })();

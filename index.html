@@ -4,8 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AETHEL // JPL — Flight System Architect CAD-OPS V4.9</title>
+  <title>AETHEL // JPL — Space Mission Engineering Simulator</title>
   <link rel="stylesheet" href="style.css">
+  <!-- KaTeX for live mathematical equations -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -13,7 +16,7 @@
   <div id="loading-skeleton">
     <div class="loader-box">
       <div class="loader-crest">◈ AETHEL // JPL ◈</div>
-      <div class="loader-text">UPLINK ESTABLISHED<span class="blink">...</span> DECRYPTING NASA TELEMETRY</div>
+      <div class="loader-text">UPLINK ESTABLISHED<span class="blink">...</span> INITIALIZING MISSION ARCHITECT</div>
       <div class="loader-bar"><div class="loader-bar-fill"></div></div>
     </div>
   </div>
@@ -22,519 +25,745 @@
   <div id="error-screen" class="hidden">
     <div class="error-box">
       <div class="error-icon">⚠</div>
-      <h2>AVIONICS SYSTEM FAULT</h2>
-      <p id="error-msg">An unhandled exception has occurred in the flight kernel.</p>
-      <button id="btn-reboot" onclick="location.reload()">⟳ REBOOT SYSTEM</button>
+      <h2>FLIGHT SUBSYSTEM EXCEPTION</h2>
+      <p id="error-msg">An unhandled state fault was captured by the avionics supervisor.</p>
+      <button class="btn btn-secondary" onclick="location.reload()">⟳ REBOOT SIMULATOR</button>
     </div>
   </div>
 
-  <!-- ═══ MAIN APPLICATION SHELL (Light-Themed Mission Ops Frame) ═══ -->
+  <!-- ═══ TOAST NOTIFICATION CONTAINER (With Undo) ═══ -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- ═══ MAIN APPLICATION SHELL ═══ -->
   <div id="app" class="hidden">
 
-    <!-- ── LEFT SIDEBAR (~200px) ── -->
+    <!-- ── LEFT NAVIGATION SIDEBAR (Views 01–05) ── -->
     <aside id="sidebar">
       <div class="sidebar-brand">
         <div class="brand-title">AETHEL <span class="brand-accent">// JPL</span></div>
-        <div class="brand-sub">CAD-OPS V4.9</div>
+        <div class="brand-sub">MISSION ARCHITECT V5.4</div>
       </div>
 
-      <div class="sidebar-status">
-        <span class="status-label">SYS CONSOLE</span>
-        <span class="status-tag online">[DSN: ONLINE]</span>
-      </div>
+      <nav class="sidebar-nav" aria-label="Mission Workflow Stages">
+        <button class="nav-btn active" data-view="01" id="nav-btn-01">
+          <span class="nav-step">01</span>
+          <div class="nav-text-wrap">
+            <span class="nav-label">MISSION</span>
+            <span class="nav-sub">Target Trajectory</span>
+          </div>
+        </button>
 
-      <nav class="sidebar-nav">
-        <a href="#view-cad" class="nav-item active" id="nav-blueprint" data-nav="blueprint">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <circle cx="12" cy="12" r="4"/>
-            <path d="M12 3v3m0 12v3M3 12h3m12 0h3"/>
-          </svg>
-          <span class="nav-text">01 CHASSIS BLUEPRINT</span>
-        </a>
+        <button class="nav-btn" data-view="02" id="nav-btn-02">
+          <span class="nav-step">02</span>
+          <div class="nav-text-wrap">
+            <span class="nav-label">VEHICLE</span>
+            <span class="nav-sub">Launch Capacity</span>
+          </div>
+        </button>
 
-        <a href="#hud-card" class="nav-item" id="nav-trajectory" data-nav="trajectory">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <ellipse cx="12" cy="12" rx="9" ry="5" transform="rotate(-20 12 12)"/>
-            <circle cx="12" cy="12" r="2.5" fill="currentColor"/>
-          </svg>
-          <span class="nav-text">02 TRAJECTORY FLIGHT HUD</span>
-        </a>
+        <button class="nav-btn" data-view="03" id="nav-btn-03">
+          <span class="nav-step">03</span>
+          <div class="nav-text-wrap">
+            <span class="nav-label">BUILD</span>
+            <span class="nav-sub">Subsystems CAD</span>
+          </div>
+        </button>
 
-        <a href="#outfitter-card" class="nav-item" id="nav-dock" data-nav="dock">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-          <span class="nav-text">03 SUBSYSTEM DOCK</span>
-        </a>
+        <button class="nav-btn" data-view="04" id="nav-btn-04">
+          <span class="nav-step">04</span>
+          <div class="nav-text-wrap">
+            <span class="nav-label">ANALYZE</span>
+            <span class="nav-sub">Orbital Math &amp; HUD</span>
+          </div>
+        </button>
 
-        <a href="#advisor-panel" class="nav-item" id="nav-advisor" data-nav="advisor">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <polyline points="4 17 10 11 4 5"/>
-            <line x1="12" y1="19" x2="20" y2="19"/>
-          </svg>
-          <span class="nav-text">04 CHIEF ADVISOR</span>
-        </a>
-
-        <a href="#btn-launch" class="nav-item" id="nav-launch" data-nav="launch">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
-            <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
-            <path d="M9 12l2 2"/>
-          </svg>
-          <span class="nav-text">05 LAUNCH SEQUENCER</span>
-        </a>
+        <button class="nav-btn" data-view="05" id="nav-btn-05">
+          <span class="nav-step">05</span>
+          <div class="nav-text-wrap">
+            <span class="nav-label">LAUNCH</span>
+            <span class="nav-sub">Checklist &amp; Stage-0</span>
+          </div>
+        </button>
       </nav>
 
       <div class="sidebar-footer">
-        <div class="telemetry-item">
-          <span class="tel-label">DOWNLINK RATE</span>
-          <span class="tel-value" id="side-downlink">84.2 MB/S</span>
-        </div>
-        <div class="telemetry-item">
-          <span class="tel-label">DOPPLER RESIDUAL</span>
-          <span class="tel-value" id="side-doppler">+0.042 Hz</span>
-        </div>
-        <div class="telemetry-item">
-          <span class="tel-label">GROUND STATION</span>
-          <span class="tel-value">NODE GOLDSTONE</span>
-        </div>
-        <button id="btn-sources" class="sidebar-link-btn">SOURCES &amp; CREDITS</button>
+        <button id="btn-advisor-toggle" class="btn btn-drawer-toggle">
+          <span class="advisor-indicator">◉</span>
+          <span>CHIEF ADVISOR</span>
+          <span id="advisor-badge" class="advisor-badge">0</span>
+        </button>
+        <button id="btn-sources" class="btn btn-ghost btn-sm">SOURCES &amp; CREDITS</button>
       </div>
     </aside>
 
     <!-- ── MAIN CONTENT WORKSPACE ── -->
-    <main id="main-content">
+    <div id="main-area">
 
-      <!-- ── TOP HUD BAR ── -->
-      <header id="top-bar">
-        <div class="hud-stat-group">
-          <span class="hud-stat-label">MET (MISSION ELAPSED)</span>
-          <span class="hud-stat-val mono" id="met-clock">T+142:08:24:19</span>
+      <!-- ── WEIGHT 4: PERSISTENT SLIM TOP VITALS BAR ── -->
+      <header id="vitals-bar" aria-label="Spacecraft Telemetry Vitals">
+        <div class="vitals-group" id="vital-mass-group" title="Payload Mass vs Vehicle Capacity">
+          <span class="vital-label">MASS</span>
+          <span class="vital-value mono" id="vital-mass">460 KG</span>
+          <span class="vital-cap dim" id="vital-mass-cap">/ 22,800 KG</span>
+          <span class="vital-chip nominal" id="vital-mass-chip">98.0% MARGIN</span>
         </div>
 
-        <div class="hud-stat-group">
-          <span class="hud-stat-label">UTC REFERENCE</span>
-          <span class="hud-stat-val mono" id="utc-clock">2026-318 // 19:00:00.000</span>
+        <div class="vitals-group" id="vital-power-group" title="Electrical Power Generation vs Load">
+          <span class="vital-label">POWER</span>
+          <span class="vital-value mono" id="vital-power">+165 W</span>
+          <span class="vital-cap dim" id="vital-power-cap">450W GEN │ 285W LOAD</span>
+          <span class="vital-chip surplus" id="vital-power-chip">SURPLUS</span>
         </div>
 
-        <div class="hud-stat-group">
-          <span class="hud-stat-label">ORBIT PARAMETERS</span>
-          <span class="hud-stat-val mono" id="hud-orbit">AP: 500.0km // PE: 500.0km | INC: 51.6°</span>
+        <div class="vitals-group" id="vital-budget-group" title="Project Cost vs Budget Cap">
+          <span class="vital-label">BUDGET</span>
+          <span class="vital-value mono" id="vital-budget">$192.0M</span>
+          <span class="vital-cap dim" id="vital-budget-cap">/ $250.0M</span>
+          <span class="vital-chip nominal" id="vital-budget-chip">FUNDED</span>
         </div>
 
-        <div class="hud-actions">
-          <button id="btn-audio" class="hud-action-btn" title="Toggle Audio [M]">
-            <span class="speaker-icon">🔊</span> AUDIO: <span id="audio-state">OFF</span> [M]
+        <div class="vitals-group" id="vital-dv-group" title="Propulsion Delta-V & Thrust-to-Weight">
+          <span class="vital-label">DELTA-V</span>
+          <span class="vital-value mono" id="vital-dv">+150 m/s</span>
+          <span class="vital-cap dim" id="vital-twr">TWR 0.98</span>
+          <span class="vital-chip nominal" id="vital-dv-chip">NOMINAL</span>
+        </div>
+
+        <!-- Utility Popover Triggers (Weight 1 ambient details) -->
+        <div class="vitals-actions">
+          <button id="btn-telemetry-popover" class="btn btn-ghost btn-sm" title="Ambient Telemetry &amp; Link Stats">
+            📡 TELEMETRY ▾
           </button>
-          <span class="hotkeys-hint">KEYS: [1-3] Orbit | [Q-T] Dock | [Spc] Go</span>
-          <span class="uplink-tag"><span class="signal-dot"></span> UPLINK LOCK // DSN-14</span>
-          <span class="eirp-tag">EIRP: 64.2 dBW</span>
+          <button id="btn-shortcuts-popover" class="btn btn-ghost btn-sm" title="Keyboard Shortcuts [?]">
+            ?
+          </button>
+          <button id="btn-audio" class="btn btn-ghost btn-sm" title="Toggle Synthesized Audio [M]">
+            🔊 <span id="audio-state">OFF</span>
+          </button>
         </div>
       </header>
 
-      <!-- ── SUB-HEADER BAR ── -->
-      <div id="sub-header">
-        <span class="sub-item">FLIGHT SYSTEM ARCHITECT // V5.4-PROD</span>
-        <span class="sub-sep">│</span>
-        <span class="sub-item">BUS: MIL-STD-1553B</span>
-        <span class="sub-sep">│</span>
-        <span class="sub-item">SYNC: PHOENIX-DSN-PRIMARY</span>
-        <span class="sub-sep">│</span>
-        <span class="sub-item">MISSION ID: <span id="mission-id-badge" class="mono">M-LEO-500K</span></span>
-        <span class="sub-sep">│</span>
-        <span class="sub-item">SIM RATE: 120 HZ REALTIME</span>
-        <span class="sub-sep">│</span>
-        <span class="sub-item cipher"><span class="lock-icon">🔒</span> CIPHER SECURE</span>
-      </div>
+      <!-- ── FOCUSED VIEWS CONTAINER (Only 1 Active at a Time) ── -->
+      <main id="views-container">
 
-      <!-- ── SELECTOR SECTION (01 Trajectory & 02 Launch Vehicle) ── -->
-      <section id="selector-section">
-        <!-- 01 Target Trajectory Profile -->
-        <div class="selector-card">
-          <div class="selector-header">
-            <span class="selector-title">⊕ 01. TARGET TRAJECTORY PROFILE</span>
-            <span class="selector-req" id="trajectory-req">REQ: 500KM CIRCULAR // INC 51.6°</span>
+        <!-- ════════ VIEW 01: MISSION ════════ -->
+        <section id="view-01" class="focused-view active" aria-labelledby="view-01-title">
+          <div class="view-header">
+            <div>
+              <div class="view-badge">STAGE 01</div>
+              <h1 class="view-title" id="view-01-title">Target Trajectory Profile</h1>
+              <p class="view-desc">Select the mission operational profile. Astrodynamic requirements dictate orbital insertion velocity, communications latency, and solar distance.</p>
+            </div>
           </div>
-          <div class="selector-buttons" id="mission-btns">
-            <button class="choice-btn active" data-mission="leo">
-              <span class="choice-name">LEO SAT</span>
-              <span class="choice-stat">500 KM</span>
-              <span class="choice-desc">Earth Observation</span>
-            </button>
-            <button class="choice-btn" data-mission="lunar">
-              <span class="choice-name">LUNAR ROV</span>
-              <span class="choice-stat">TLI BURN</span>
-              <span class="choice-desc">Artemis Relay</span>
-            </button>
-            <button class="choice-btn" data-mission="mars">
-              <span class="choice-name">MARS PROBE</span>
-              <span class="choice-stat">HOHMANN</span>
-              <span class="choice-desc">Interplanetary</span>
-            </button>
-          </div>
-        </div>
 
-        <!-- 02 Launch Vehicle Class -->
-        <div class="selector-card">
-          <div class="selector-header">
-            <span class="selector-title">⊕ 02. LAUNCH VEHICLE CLASS</span>
-            <span class="selector-req" id="vehicle-cap-label">CAP: 22,800 KG // BASE: $67M</span>
-          </div>
-          <div class="selector-buttons" id="vehicle-btns">
-            <button class="choice-btn active" data-vehicle="falcon9">
-              <span class="choice-name">FALCON 9</span>
-              <span class="choice-stat">22.8T</span>
-              <span class="choice-desc">$67M Cost Base</span>
-            </button>
-            <button class="choice-btn" data-vehicle="falconheavy">
-              <span class="choice-name">FALCON HVY</span>
-              <span class="choice-stat">63.8T</span>
-              <span class="choice-desc">$97M Cost Base</span>
-            </button>
-            <button class="choice-btn" data-vehicle="sls">
-              <span class="choice-name">SLS BLOCK 1</span>
-              <span class="choice-stat">95.0T</span>
-              <span class="choice-desc">$2,100M Heavy</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── TELEMETRY TILES (4 CARDS) ── -->
-      <section id="telemetry-grid">
-        <!-- Mass -->
-        <div class="metric-card" id="gauge-mass">
-          <div class="metric-header">
-            <span class="metric-icon">⬡</span>
-            <span class="metric-title">PAYLOAD MASS</span>
-            <span class="metric-pct" id="mass-pct">2.0%</span>
-          </div>
-          <div class="metric-body">
-            <span class="metric-value mono" id="mass-val">460</span>
-            <span class="metric-unit">KG</span>
-            <span class="metric-sub" id="mass-max-text">MAX: 22,800 KG</span>
-          </div>
-          <div class="metric-bar-track">
-            <div class="metric-bar-fill" id="mass-fill"></div>
-          </div>
-          <div class="metric-footer">
-            <span class="metric-secondary">STRUCTURAL MARGIN: <span id="mass-margin">98.0%</span></span>
-            <span class="metric-chip nominal" id="mass-status">[NOMINAL]</span>
-          </div>
-        </div>
-
-        <!-- Power -->
-        <div class="metric-card" id="gauge-power">
-          <div class="metric-header">
-            <span class="metric-icon">⚡</span>
-            <span class="metric-title">POWER MARGIN</span>
-            <span class="metric-pct" id="power-pct">+165 W</span>
-          </div>
-          <div class="metric-body">
-            <span class="metric-value mono" id="power-val">+165</span>
-            <span class="metric-unit">W NET</span>
-            <span class="metric-sub" id="power-sub-text">GEN: 450W | LOAD: 285W</span>
-          </div>
-          <div class="metric-bar-track">
-            <div class="metric-bar-fill" id="power-fill"></div>
-          </div>
-          <div class="metric-footer">
-            <span class="metric-secondary">BATT BUFFER: <span id="batt-buffer">98.4 Wh</span></span>
-            <span class="metric-chip surplus" id="power-status">[SURPLUS]</span>
-          </div>
-        </div>
-
-        <!-- Budget -->
-        <div class="metric-card" id="gauge-budget">
-          <div class="metric-header">
-            <span class="metric-icon">◈</span>
-            <span class="metric-title">PROJECT BUDGET</span>
-            <span class="metric-pct" id="budget-pct">76.8%</span>
-          </div>
-          <div class="metric-body">
-            <span class="metric-value mono" id="budget-val">$192.0M</span>
-            <span class="metric-sub" id="budget-sub-text">CAP: $250.0M</span>
-          </div>
-          <div class="metric-bar-track">
-            <div class="metric-bar-fill" id="budget-fill"></div>
-          </div>
-          <div class="metric-footer">
-            <span class="metric-secondary">RESERVE: <span id="budget-reserve">$58.0M</span></span>
-            <span class="metric-chip nominal" id="budget-status">[FUNDED]</span>
-          </div>
-        </div>
-
-        <!-- Data -->
-        <div class="metric-card" id="gauge-data">
-          <div class="metric-header">
-            <span class="metric-icon">◉</span>
-            <span class="metric-title">DATA THROUGHPUT</span>
-            <span class="metric-pct" id="data-target-text">TGT: 10M</span>
-          </div>
-          <div class="metric-body">
-            <span class="metric-value mono" id="data-val">62.0</span>
-            <span class="metric-unit">Mbps</span>
-            <span class="metric-sub" id="data-sub-text">PAYLOAD: 10.0 Mbps</span>
-          </div>
-          <div class="metric-bar-track">
-            <div class="metric-bar-fill" id="data-fill"></div>
-          </div>
-          <div class="metric-footer">
-            <span class="metric-secondary">DSN LINK MARGIN: <span id="data-margin">+23.4 dB</span></span>
-            <span class="metric-chip nominal" id="data-status">[NOMINAL LINK]</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── MIDDLE SECTION: LEFT (HUD & CONIC) vs RIGHT (OUTFITTER) ── -->
-      <section id="middle-section">
-
-        <!-- LEFT COLUMN: Dual HUD & Mathematical Conic -->
-        <div class="middle-left-col">
-
-          <!-- Card 1: Orbit HUD / Chassis CAD -->
-          <div class="hud-card" id="hud-card">
-            <div class="hud-card-header">
-              <div class="hud-title-wrap">
-                <span class="hud-tag" id="hud-conic-tag">ORBIT-HUD // TRAJECTORY 02</span>
-                <span class="hud-main-title" id="hud-main-title">LEO ORBITAL INSERTION HUD</span>
+          <div class="mission-grid">
+            <div class="mission-cards-col">
+              <div class="choice-card active" data-mission="leo" tabindex="0" role="button" aria-pressed="true">
+                <div class="card-top">
+                  <span class="card-name">LEO Satellite</span>
+                  <span class="card-badge">500 KM CIRCULAR</span>
+                </div>
+                <div class="card-specs">
+                  <div class="spec-item"><span class="spec-label">ALTITUDE</span><strong>500 km</strong></div>
+                  <div class="spec-item"><span class="spec-label">INCLINATION</span><strong>51.6°</strong></div>
+                  <div class="spec-item"><span class="spec-label">VELOCITY</span><strong>7.61 km/s</strong></div>
+                  <div class="spec-item"><span class="spec-label">DELTA-V REQ</span><strong>150 m/s</strong></div>
+                </div>
+                <p class="card-info">Earth observation platform in Low Earth Orbit. Constant ground station coverage via DSN nodes with predictable ~35 min eclipse passes.</p>
               </div>
-              <div class="hud-meta" id="hud-meta-text">CONIC: ORBIT-04 | TOF: 94.6 min | dV_REQ: 150 m/s</div>
-              <div class="hud-controls">
-                <div class="view-switch-btns">
-                  <button class="view-tab-btn" data-view="cad">⬡ CHASSIS CAD</button>
-                  <button class="view-tab-btn active" data-view="trajectory">◎ ORBIT TRAJECTORY</button>
+
+              <div class="choice-card" data-mission="lunar" tabindex="0" role="button" aria-pressed="false">
+                <div class="card-top">
+                  <span class="card-name">Lunar Rover &amp; Relay</span>
+                  <span class="card-badge">CISLUNAR TRANSFER</span>
                 </div>
-                <div class="warp-btns">
-                  <button class="warp-btn active" data-warp="1">1x</button>
-                  <button class="warp-btn" data-warp="100">100x</button>
-                  <button class="warp-btn" data-warp="10000">10k x</button>
+                <div class="card-specs">
+                  <div class="spec-item"><span class="spec-label">APOAPSIS</span><strong>384,400 km</strong></div>
+                  <div class="spec-item"><span class="spec-label">INCLINATION</span><strong>28.5°</strong></div>
+                  <div class="spec-item"><span class="spec-label">VELOCITY</span><strong>10.92 km/s</strong></div>
+                  <div class="spec-item"><span class="spec-label">DELTA-V REQ</span><strong>3,100 m/s</strong></div>
                 </div>
+                <p class="card-info">Artemis relay infrastructure. Demands high structural endurance for Translunar Injection (TLI) burn and lunar capture propulsion.</p>
+              </div>
+
+              <div class="choice-card" data-mission="mars" tabindex="0" role="button" aria-pressed="false">
+                <div class="card-top">
+                  <span class="card-name">Mars Exploration Probe</span>
+                  <span class="card-badge">HOHMANN CRUISE</span>
+                </div>
+                <div class="card-specs">
+                  <div class="spec-item"><span class="spec-label">CRUISE DURATION</span><strong>259 days</strong></div>
+                  <div class="spec-item"><span class="spec-label">DISTANCE</span><strong>1.52 AU</strong></div>
+                  <div class="spec-item"><span class="spec-label">VELOCITY</span><strong>11.57 km/s</strong></div>
+                  <div class="spec-item"><span class="spec-label">DELTA-V REQ</span><strong>5,600 m/s</strong></div>
+                </div>
+                <p class="card-info">Interplanetary probe requiring sustained electrical generation. Solar flux drops to ~43% of Earth levels; radioisotope thermal power recommended.</p>
               </div>
             </div>
 
-            <!-- Viewport Container (Dark Card) -->
-            <div class="hud-viewport">
-
-              <!-- VIEW A: ORBIT TRAJECTORY TACTICAL HUD -->
-              <div id="view-trajectory" class="view-panel active">
-                <canvas id="orbit-canvas" width="620" height="280"></canvas>
-
-                <!-- Targeting Overlay Box (Top Left) -->
-                <div class="hud-overlay-box top-left">
-                  <div class="overlay-row"><span class="dim">TARGET:</span> <span id="over-target" class="mono">LEO 500KM</span></div>
-                  <div class="overlay-row"><span class="dim">PERIAPSIS:</span> <span id="over-peri" class="mono">500.0 km</span></div>
-                  <div class="overlay-row"><span class="dim">VELOCITY:</span> <span id="over-vel" class="mono">7.613 km/s</span></div>
+            <div class="mission-preview-col">
+              <div class="preview-card">
+                <div class="preview-header">
+                  <span class="preview-title">ORBITAL PREVIEW</span>
+                  <span class="preview-tag mono" id="mission-preview-tag">LEO 500KM CIRCULAR</span>
                 </div>
+                <div class="preview-canvas-wrap">
+                  <canvas id="mission-preview-canvas" width="440" height="260"></canvas>
+                </div>
+                <div class="preview-stats">
+                  <div>PERIOD: <strong id="preview-period" class="mono">94.6 min</strong></div>
+                  <div>TARGET VECTOR: <strong id="preview-vector" class="mono">LEO SATELLITE PATH</strong></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-                <!-- 8-Ball Attitude Indicator / Navball Widget (Top Right) -->
-                <div class="navball-widget">
-                  <div class="navball-title">NAVBALL 8-BALL</div>
-                  <div class="navball-container">
-                    <canvas id="navball-canvas" width="76" height="76"></canvas>
-                    <div class="navball-reticle">━ ⌖ ━</div>
-                  </div>
-                  <div class="navball-readout" id="navball-readout">PITCH: +12.4° | ROLL: +00.0°</div>
+        <!-- ════════ VIEW 02: VEHICLE ════════ -->
+        <section id="view-02" class="focused-view" aria-labelledby="view-02-title">
+          <div class="view-header">
+            <div>
+              <div class="view-badge">STAGE 02</div>
+              <h1 class="view-title" id="view-02-title">Launch Vehicle Class</h1>
+              <p class="view-desc">Select a booster from the NASA Launch Services Program fleet. Boosters are evaluated against your total spacecraft payload mass and project budget cap.</p>
+            </div>
+          </div>
+
+          <div class="vehicle-grid">
+            <div class="vehicle-card choice-card active" data-vehicle="falcon9" tabindex="0" role="button" aria-pressed="true">
+              <div class="card-top">
+                <span class="card-name">Falcon 9</span>
+                <span class="card-badge">$67M COST</span>
+              </div>
+              <div class="vehicle-bar-box">
+                <div class="bar-header">
+                  <span>PAYLOAD CAPACITY</span>
+                  <strong class="mono">22,800 KG</strong>
+                </div>
+                <div class="bar-track"><div class="bar-fill" id="f9-cap-fill" style="width: 2%;"></div></div>
+                <div class="bar-footer"><span id="f9-status-sub">460 kg equipped (2.0% of capacity)</span></div>
+              </div>
+              <p class="card-info">Cost-effective medium lift workhorse. Suitable for LEO constellations and light planetary missions.</p>
+            </div>
+
+            <div class="vehicle-card choice-card" data-vehicle="falconheavy" tabindex="0" role="button" aria-pressed="false">
+              <div class="card-top">
+                <span class="card-name">Falcon Heavy</span>
+                <span class="card-badge">$97M COST</span>
+              </div>
+              <div class="vehicle-bar-box">
+                <div class="bar-header">
+                  <span>PAYLOAD CAPACITY</span>
+                  <strong class="mono">63,800 KG</strong>
+                </div>
+                <div class="bar-track"><div class="bar-fill" id="fh-cap-fill" style="width: 0.7%;"></div></div>
+                <div class="bar-footer"><span id="fh-status-sub">460 kg equipped (0.7% of capacity)</span></div>
+              </div>
+              <p class="card-info">Heavy-lift tri-core configuration for massive deep space probes and direct interplanetary injection.</p>
+            </div>
+
+            <div class="vehicle-card choice-card" data-vehicle="sls" tabindex="0" role="button" aria-pressed="false">
+              <div class="card-top">
+                <span class="card-name">SLS Block 1</span>
+                <span class="card-badge">$2,100M COST</span>
+              </div>
+              <div class="vehicle-bar-box">
+                <div class="bar-header">
+                  <span>PAYLOAD CAPACITY</span>
+                  <strong class="mono">95,000 KG</strong>
+                </div>
+                <div class="bar-track"><div class="bar-fill" id="sls-cap-fill" style="width: 0.5%;"></div></div>
+                <div class="bar-footer"><span id="sls-status-sub">460 kg equipped (0.5% of capacity)</span></div>
+              </div>
+              <p class="card-info">Super heavy-lift exploration vehicle with massive lift margin. Warning: High unit cost exceeds standard exploratory budget caps.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ════════ VIEW 03: BUILD (WORKSPACE) ════════ -->
+        <section id="view-03" class="focused-view" aria-labelledby="view-03-title">
+          <div class="build-layout">
+
+            <!-- Chassis CAD Interactive Stage -->
+            <div class="cad-stage-card">
+              <div class="card-header">
+                <div class="header-title-group">
+                  <span class="section-tag">SCHEMATIC CAD</span>
+                  <h2 class="section-title">Bus Integration &amp; Visual Outfitter</h2>
+                </div>
+                <div class="cad-legend">
+                  <span class="legend-dot active"></span> Equipped
+                  <span class="legend-dot stowed"></span> Stowed
                 </div>
               </div>
 
-              <!-- VIEW B: CHASSIS CAD SCHEMATIC -->
-              <div id="view-cad" class="view-panel">
-                <svg id="sat-svg" viewBox="0 0 540 280" xmlns="http://www.w3.org/2000/svg">
-                  <!-- Background grid -->
+              <div class="cad-canvas-box">
+                <svg id="cad-schematic-svg" viewBox="0 0 560 300" xmlns="http://www.w3.org/2000/svg">
                   <defs>
-                    <pattern id="cadGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                    <pattern id="cadGridPattern" width="20" height="20" patternUnits="userSpaceOnUse">
                       <line x1="0" y1="0" x2="20" y2="0" stroke="#1E2A38" stroke-width="0.5"/>
                       <line x1="0" y1="0" x2="0" y2="20" stroke="#1E2A38" stroke-width="0.5"/>
                     </pattern>
                   </defs>
                   <rect width="100%" height="100%" fill="#070B12"/>
-                  <rect width="100%" height="100%" fill="url(#cadGrid)" opacity="0.6"/>
+                  <rect width="100%" height="100%" fill="url(#cadGridPattern)" opacity="0.5"/>
 
-                  <!-- Central Spacecraft Chassis -->
-                  <rect x="220" y="105" width="100" height="80" rx="4" fill="#0C1322" stroke="var(--accent-cyan)" stroke-width="1.8"/>
-                  <rect x="235" y="120" width="70" height="50" rx="2" fill="none" stroke="#2563EB" stroke-width="1" stroke-dasharray="3 3"/>
-                  <text x="270" y="148" fill="var(--accent-cyan)" font-size="9" text-anchor="middle" font-family="'JetBrains Mono', monospace">BUS CORE</text>
-
-                  <!-- Solar Panel Left -->
-                  <g id="svg-solar-l" class="cad-module">
-                    <rect x="50" y="120" width="150" height="50" rx="2" fill="#0C1B2A" stroke="var(--accent-cyan)" stroke-width="1.2" opacity="0.6"/>
-                    <line x1="75" y1="120" x2="75" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
-                    <line x1="100" y1="120" x2="100" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
-                    <line x1="125" y1="120" x2="125" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
-                    <line x1="150" y1="120" x2="150" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
-                    <line x1="175" y1="120" x2="175" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
-                    <line x1="200" y1="145" x2="220" y2="145" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+                  <!-- Central Spacecraft Core Bus -->
+                  <g id="svg-bus-group">
+                    <rect x="230" y="110" width="100" height="80" rx="4" fill="#0C1322" stroke="var(--accent-cyan)" stroke-width="1.8"/>
+                    <rect x="245" y="125" width="70" height="50" rx="2" fill="none" stroke="#2563EB" stroke-width="1" stroke-dasharray="3 3"/>
+                    <text x="280" y="153" fill="var(--accent-cyan)" font-size="9" text-anchor="middle" font-family="'JetBrains Mono', monospace">BUS CORE</text>
                   </g>
 
-                  <!-- Solar Panel Right -->
-                  <g id="svg-solar-r" class="cad-module">
-                    <rect x="340" y="120" width="150" height="50" rx="2" fill="#0C1B2A" stroke="var(--accent-cyan)" stroke-width="1.2" opacity="0.6"/>
-                    <line x1="365" y1="120" x2="365" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
-                    <line x1="390" y1="120" x2="390" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
-                    <line x1="415" y1="120" x2="415" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
-                    <line x1="440" y1="120" x2="440" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
-                    <line x1="465" y1="120" x2="465" y2="170" stroke="var(--accent-cyan)" stroke-width="0.6" opacity="0.4"/>
-                    <line x1="320" y1="145" x2="340" y2="145" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+                  <!-- Solar Array Left -->
+                  <g id="cad-solar-l" class="cad-part active">
+                    <rect x="50" y="125" width="160" height="50" rx="2" fill="#0C1B2A" stroke="var(--accent-cyan)" stroke-width="1.2"/>
+                    <line x1="80" y1="125" x2="80" y2="175" stroke="var(--accent-cyan)" stroke-width="0.5" opacity="0.4"/>
+                    <line x1="110" y1="125" x2="110" y2="175" stroke="var(--accent-cyan)" stroke-width="0.5" opacity="0.4"/>
+                    <line x1="140" y1="125" x2="140" y2="175" stroke="var(--accent-cyan)" stroke-width="0.5" opacity="0.4"/>
+                    <line x1="170" y1="125" x2="170" y2="175" stroke="var(--accent-cyan)" stroke-width="0.5" opacity="0.4"/>
+                    <line x1="210" y1="150" x2="230" y2="150" stroke="var(--accent-cyan)" stroke-width="1.5"/>
                   </g>
 
-                  <!-- Antenna Dish (Top) -->
-                  <g id="svg-antenna" class="cad-module">
-                    <path d="M 235 90 A 35 15 0 0 1 305 90" fill="none" stroke="var(--accent-cyan)" stroke-width="1.5"/>
-                    <line x1="270" y1="90" x2="270" y2="105" stroke="var(--accent-cyan)" stroke-width="1.5"/>
-                    <circle cx="270" cy="80" r="2.5" fill="var(--accent-cyan)"/>
-                    <line x1="270" y1="80" x2="270" y2="90" stroke="var(--accent-cyan)" stroke-width="1"/>
+                  <!-- Solar Array Right -->
+                  <g id="cad-solar-r" class="cad-part active">
+                    <rect x="350" y="125" width="160" height="50" rx="2" fill="#0C1B2A" stroke="var(--accent-cyan)" stroke-width="1.2"/>
+                    <line x1="380" y1="125" x2="380" y2="175" stroke="var(--accent-cyan)" stroke-width="0.5" opacity="0.4"/>
+                    <line x1="410" y1="125" x2="410" y2="175" stroke="var(--accent-cyan)" stroke-width="0.5" opacity="0.4"/>
+                    <line x1="440" y1="125" x2="440" y2="175" stroke="var(--accent-cyan)" stroke-width="0.5" opacity="0.4"/>
+                    <line x1="470" y1="125" x2="470" y2="175" stroke="var(--accent-cyan)" stroke-width="0.5" opacity="0.4"/>
+                    <line x1="330" y1="150" x2="350" y2="150" stroke="var(--accent-cyan)" stroke-width="1.5"/>
                   </g>
 
-                  <!-- Thruster Engine Nozzle (Bottom) -->
-                  <g id="svg-thruster" class="cad-module">
-                    <polygon points="255,185 285,185 292,215 248,215" fill="#0C1322" stroke="var(--accent-cyan)" stroke-width="1.4"/>
-                    <line x1="250" y1="215" x2="290" y2="215" stroke="var(--accent-cyan)" stroke-width="1"/>
+                  <!-- Antenna Reflector Dish (Top) -->
+                  <g id="cad-antenna" class="cad-part active">
+                    <path d="M 245 92 A 35 15 0 0 1 315 92" fill="none" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+                    <line x1="280" y1="92" x2="280" y2="110" stroke="var(--accent-cyan)" stroke-width="1.5"/>
+                    <circle cx="280" cy="82" r="3" fill="var(--accent-cyan)"/>
+                    <line x1="280" y1="82" x2="280" y2="92" stroke="var(--accent-cyan)" stroke-width="1"/>
                   </g>
 
-                  <!-- Instrument Payload Bay -->
-                  <g id="svg-instruments" class="cad-module">
-                    <circle cx="270" cy="145" r="14" fill="#0E2238" stroke="var(--accent-cyan)" stroke-width="1.2"/>
-                    <circle cx="270" cy="145" r="5" fill="var(--accent-cyan)"/>
+                  <!-- Thruster Engine Bell (Bottom) -->
+                  <g id="cad-thruster" class="cad-part active">
+                    <polygon points="265,190 295,190 302,220 258,220" fill="#0C1322" stroke="var(--accent-cyan)" stroke-width="1.4"/>
+                    <line x1="260" y1="220" x2="300" y2="220" stroke="var(--accent-cyan)" stroke-width="1"/>
                   </g>
 
-                  <!-- Dynamic leader lines and text tags -->
-                  <g id="svg-leaders"></g>
+                  <!-- Instrument Payload Core -->
+                  <g id="cad-instrument" class="cad-part active">
+                    <circle cx="280" cy="150" r="14" fill="#0E2238" stroke="var(--accent-cyan)" stroke-width="1.2"/>
+                    <circle cx="280" cy="150" r="5" fill="var(--accent-cyan)"/>
+                  </g>
+
+                  <g id="cad-callouts"></g>
                 </svg>
               </div>
 
-            </div>
-          </div>
-
-          <!-- Card 2: Mathematical Predicted Trajectory Conic (below HUD) -->
-          <div class="conic-card">
-            <div class="conic-card-header">
-              <div class="conic-title-wrap">
-                <span class="conic-icon">⬡</span>
-                <span class="conic-title">MATHEMATICAL PREDICTED TRAJECTORY CONIC</span>
+              <div class="cad-footer-stats">
+                <div>CHASSIS STATUS: <strong class="mono" id="cad-chassis-label">SMALLSAT BUS READY</strong></div>
+                <div>ACTIVE MODULES: <strong class="mono" id="cad-active-count">5 / 15</strong></div>
               </div>
-              <div class="conic-meta">MANEUVER NODES: 02 │ PROPAGATOR: RUNGE-KUTTA 4</div>
             </div>
 
-            <div class="conic-canvas-wrap">
-              <canvas id="conic-canvas" width="620" height="150"></canvas>
-            </div>
-
-            <div class="conic-footer">
-              <div class="conic-stat">PROPULSION dV: <strong id="traj-dv">150</strong> m/s</div>
-              <div class="conic-stat">TWR: <strong id="traj-twr">0.98</strong></div>
-              <div class="conic-stat">ORBIT PERIOD: <strong id="traj-period">94.6</strong> min</div>
-              <div class="conic-target">TARGET VECTOR: <span id="traj-target-label" class="mono">LEO SATELLITE FLIGHT PATH</span></div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- RIGHT COLUMN: Payload Outfitter -->
-        <div class="middle-right-col">
-          <div class="outfitter-card" id="outfitter-card">
-            <div class="outfitter-header">
-              <div class="outfitter-title-wrap">
-                <span class="outfitter-icon">⬡</span>
-                <span class="outfitter-title">PAYLOAD OUTFITTER</span>
+            <!-- Subsystem Outfitter Side Panel -->
+            <div class="outfitter-panel-card">
+              <div class="card-header">
+                <span class="section-tag">COMPONENT DOCK</span>
+                <span class="section-count mono" id="outfitter-equipped-badge">5 EQUIPPED</span>
               </div>
-              <span class="outfitter-count" id="equipped-count">5 SUBSYSTEMS</span>
+
+              <!-- Category Segmented Control Tabs [Q-T] -->
+              <div class="segmented-control" role="tablist">
+                <button class="seg-btn active" data-cat="power" role="tab" aria-selected="true">PWR [Q]</button>
+                <button class="seg-btn" data-cat="comms" role="tab" aria-selected="false">COMM [W]</button>
+                <button class="seg-btn" data-cat="instruments" role="tab" aria-selected="false">INST [E]</button>
+                <button class="seg-btn" data-cat="propulsion" role="tab" aria-selected="false">PROP [R]</button>
+                <button class="seg-btn" data-cat="chassis" role="tab" aria-selected="false">CHAS [T]</button>
+              </div>
+
+              <div id="subsystem-cards-list" class="component-cards-container"></div>
             </div>
 
-            <!-- Category Tabs -->
-            <div class="outfitter-tabs" id="subsystem-tabs">
-              <button class="out-tab active" data-cat="power">PWR</button>
-              <button class="out-tab" data-cat="comms">COMM</button>
-              <button class="out-tab" data-cat="instruments">INST</button>
-              <button class="out-tab" data-cat="propulsion">PROP</button>
-              <button class="out-tab" data-cat="chassis">CHAS</button>
-            </div>
-
-            <!-- Subsystem Cards List -->
-            <div id="subsystem-outfitter" class="outfitter-list"></div>
-
-            <div class="outfitter-footer">
-              <span class="footer-modules-tag">TOTAL ACTIVE PAYLOAD MODULES:</span>
-              <span class="footer-modules-count" id="footer-modules-count">5 MODULES EQUIPPED</span>
-            </div>
           </div>
-        </div>
+        </section>
 
-      </section>
+        <!-- ════════ VIEW 04: ANALYZE (MATH & ORBIT HUD) ════════ -->
+        <section id="view-04" class="focused-view" aria-labelledby="view-04-title">
+          <div class="analyze-layout">
 
-      <!-- ── BOTTOM ROW: Chief Advisor Console + Stage-0 Sequencer ── -->
-      <section id="bottom-section">
-        <!-- Chief Advisor Console -->
-        <div id="advisor-panel">
-          <div class="advisor-header">
-            <div class="advisor-title-wrap">
-              <span class="advisor-icon">◉</span>
-              <span class="advisor-title">CHIEF AVIONICS ADVISOR CONSOLE</span>
+            <!-- Left: High Performance RK4 Orbit HUD & Conic -->
+            <div class="hud-column">
+              <div class="hud-panel-card">
+                <div class="hud-top-bar">
+                  <div class="hud-title-wrap">
+                    <span class="hud-title" id="hud-orbit-title">LEO ORBITAL INSERTION HUD</span>
+                    <span class="hud-sub mono">RUNGE-KUTTA 4 INTEGRATOR</span>
+                  </div>
+                  <div class="hud-time-warp-controls">
+                    <span class="warp-label">TIME WARP:</span>
+                    <div class="segmented-control sm">
+                      <button class="warp-btn active" data-warp="1">1x</button>
+                      <button class="warp-btn" data-warp="100">100x</button>
+                      <button class="warp-btn" data-warp="10000">10k x</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="hud-canvas-container">
+                  <canvas id="orbit-hud-canvas" width="600" height="280"></canvas>
+
+                  <!-- Targeting Box (Top Left) -->
+                  <div class="hud-telemetry-box">
+                    <div class="box-row"><span class="dim">TARGET:</span> <span id="tele-target" class="mono">LEO 500KM</span></div>
+                    <div class="box-row"><span class="dim">PERIAPSIS:</span> <span id="tele-peri" class="mono">500.0 km</span></div>
+                    <div class="box-row"><span class="dim">VELOCITY:</span> <span id="tele-vel" class="mono">7.613 km/s</span></div>
+                  </div>
+
+                  <!-- 8-Ball Attitude Horizon Navball (Top Right) -->
+                  <div class="hud-navball-box">
+                    <div class="navball-label">ATTITUDE 8-BALL</div>
+                    <canvas id="navball-canvas" width="70" height="70"></canvas>
+                    <div class="navball-crosshair">━ ⌖ ━</div>
+                    <div class="navball-pitch-roll mono" id="navball-readout">PITCH: +12.4°</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Kepler's 2nd Law & Transfer Conic Canvas -->
+              <div class="conic-panel-card">
+                <div class="conic-header">
+                  <span class="conic-title">KEPLER EQUAL-AREA SWEEP &amp; TRANSFER CONIC</span>
+                  <span class="conic-meta mono">dA/dt = const</span>
+                </div>
+                <div class="conic-canvas-box">
+                  <canvas id="conic-transfer-canvas" width="600" height="150"></canvas>
+                </div>
+              </div>
             </div>
-            <span class="advisor-audit-tag">AUTONOMOUS AUDIT ACTIONS</span>
+
+            <!-- Right: Interactive Engineering Math Panel -->
+            <div class="math-column">
+              <div class="math-panel-card">
+                <div class="math-card-header">
+                  <div>
+                    <h2 class="math-card-title">Astrodynamics &amp; Physics Derivations</h2>
+                    <p class="math-card-desc">All equations update live with your active spacecraft mass, power, and trajectory state.</p>
+                  </div>
+                </div>
+
+                <div class="equations-scroll">
+
+                  <!-- 1. Tsiolkovsky Rocket Equation -->
+                  <div class="equation-box" id="eq-tsiolkovsky">
+                    <div class="eq-header">
+                      <span class="eq-name">Tsiolkovsky Rocket Equation</span>
+                      <button class="btn btn-ghost btn-xs eq-expand-toggle">Derivation ▾</button>
+                    </div>
+                    <div class="eq-render" id="katex-tsiolkovsky"></div>
+                    <div class="eq-live-values">
+                      <span class="eq-val-tag" data-target="mass">m0: <strong class="mono" id="math-m0">23,260 kg</strong></span>
+                      <span class="eq-val-tag" data-target="mass">mf: <strong class="mono" id="math-mf">460 kg</strong></span>
+                      <span class="eq-val-tag">Isp: <strong class="mono" id="math-isp">320 s</strong></span>
+                      <span class="eq-val-tag" data-target="dv">Δv: <strong class="mono" id="math-dv-res">150 m/s</strong></span>
+                    </div>
+                    <!-- Small Tsiolkovsky Curve Visualization -->
+                    <div class="tsiolkovsky-graph-wrap">
+                      <canvas id="tsiolkovsky-canvas" width="300" height="70"></canvas>
+                    </div>
+                    <div class="eq-derivation hidden">
+                      <p>Derived by integrating Newton's second law for variable mass systems: \( m\frac{dv}{dt} = -v_e\frac{dm}{dt} \). Integrating from \( t_0 \) to \( t_f \) yields \( \Delta v = v_e \ln\frac{m_0}{m_f} \), where \( v_e = I_{\text{sp}} g_0 \).</p>
+                    </div>
+                  </div>
+
+                  <!-- 2. Vis-Viva Orbital Velocity -->
+                  <div class="equation-box" id="eq-visviva">
+                    <div class="eq-header">
+                      <span class="eq-name">Vis-Viva Orbital Speed</span>
+                      <button class="btn btn-ghost btn-xs eq-expand-toggle">Derivation ▾</button>
+                    </div>
+                    <div class="eq-render" id="katex-visviva"></div>
+                    <div class="eq-live-values">
+                      <span class="eq-val-tag">μ: <strong class="mono">3.986×10¹⁴ m³/s²</strong></span>
+                      <span class="eq-val-tag">r: <strong class="mono" id="math-r">6,871 km</strong></span>
+                      <span class="eq-val-tag">v_orb: <strong class="mono" id="math-vorb">7.613 km/s</strong></span>
+                    </div>
+                    <div class="eq-derivation hidden">
+                      <p>Conservation of specific mechanical energy: \( \epsilon = \frac{v^2}{2} - \frac{\mu}{r} = -\frac{\mu}{2a} \). Solving for velocity gives the Vis-Viva relation.</p>
+                    </div>
+                  </div>
+
+                  <!-- 3. Kepler's Third Law -->
+                  <div class="equation-box" id="eq-kepler3">
+                    <div class="eq-header">
+                      <span class="eq-name">Kepler's Third Law (Orbital Period)</span>
+                      <button class="btn btn-ghost btn-xs eq-expand-toggle">Derivation ▾</button>
+                    </div>
+                    <div class="eq-render" id="katex-kepler3"></div>
+                    <div class="eq-live-values">
+                      <span class="eq-val-tag">a: <strong class="mono" id="math-sma">6,871 km</strong></span>
+                      <span class="eq-val-tag">T_orb: <strong class="mono" id="math-period">94.6 min</strong></span>
+                    </div>
+                    <div class="eq-derivation hidden">
+                      <p>Equating gravitational force with centripetal acceleration for circular orbits: \( \frac{\mu}{r^2} = \omega^2 r \). Since \( \omega = \frac{2\pi}{T} \), it follows that \( T^2 = \frac{4\pi^2 a^3}{\mu} \).</p>
+                    </div>
+                  </div>
+
+                  <!-- 4. Hohmann Transfer Delta-V -->
+                  <div class="equation-box" id="eq-hohmann">
+                    <div class="eq-header">
+                      <span class="eq-name">Hohmann Transfer Burns</span>
+                      <button class="btn btn-ghost btn-xs eq-expand-toggle">Derivation ▾</button>
+                    </div>
+                    <div class="eq-render" id="katex-hohmann"></div>
+                    <div class="eq-live-values">
+                      <span class="eq-val-tag">Δv1: <strong class="mono" id="math-dv1">110 m/s</strong></span>
+                      <span class="eq-val-tag">Δv2: <strong class="mono" id="math-dv2">40 m/s</strong></span>
+                      <span class="eq-val-tag">Total: <strong class="mono" id="math-dv-tot">150 m/s</strong></span>
+                    </div>
+                    <div class="eq-derivation hidden">
+                      <p>Impulsive co-planar transfer between two circular orbits. The semi-major axis of the transfer ellipse is \( a_{\text{trans}} = \frac{r_1 + r_2}{2} \).</p>
+                    </div>
+                  </div>
+
+                  <!-- 5. Electrical Power Balance Sum -->
+                  <div class="equation-box" id="eq-power-sum">
+                    <div class="eq-header">
+                      <span class="eq-name">Power Generation &amp; Draw Balance</span>
+                    </div>
+                    <div class="eq-render" id="katex-power"></div>
+                    <div class="power-sum-breakdown" id="math-power-breakdown">
+                      <div class="power-item gen"><span>+ UltraFlex Dual Solar Wings:</span> <strong class="mono">+450 W</strong></div>
+                      <div class="power-item load"><span>- Ka-Band High-Gain Antenna:</span> <strong class="mono">-100 W</strong></div>
+                      <div class="power-item load"><span>- HiRES Multispectral Imager:</span> <strong class="mono">-90 W</strong></div>
+                      <div class="power-item load"><span>- Quadrupole Spectrometer:</span> <strong class="mono">-55 W</strong></div>
+                      <div class="power-item load"><span>- Cold Gas RCS Attitude Array:</span> <strong class="mono">-40 W</strong></div>
+                      <div class="power-item total"><span>NET POWER MARGIN:</span> <strong class="mono">+165 W</strong></div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
           </div>
-          <div id="advisor-log" class="advisor-log mono"></div>
+        </section>
+
+        <!-- ════════ VIEW 05: LAUNCH ════════ -->
+        <section id="view-05" class="focused-view" aria-labelledby="view-05-title">
+          <div class="launch-view-grid">
+
+            <!-- Pre-flight Readiness Checklist -->
+            <div class="checklist-card">
+              <div class="card-header">
+                <div>
+                  <span class="section-tag">VERIFICATION MATRIX</span>
+                  <h2 class="section-title">Pre-Flight Readiness Checklist</h2>
+                </div>
+                <span class="checklist-status-badge nominal" id="checklist-overall-badge">ALL CHECKS PASSED</span>
+              </div>
+
+              <div class="checklist-items">
+                <div class="check-row" id="chk-mass">
+                  <span class="check-icon">✓</span>
+                  <div class="check-info">
+                    <div class="check-title">Launch Mass Envelope</div>
+                    <div class="check-sub" id="chk-mass-sub">Payload 460 kg is within Falcon 9 capacity (22,800 kg).</div>
+                  </div>
+                  <span class="check-pill nominal" id="chk-mass-pill">PASS</span>
+                </div>
+
+                <div class="check-row" id="chk-power">
+                  <span class="check-icon">✓</span>
+                  <div class="check-info">
+                    <div class="check-title">Electrical Power Generation Balance</div>
+                    <div class="check-sub" id="chk-power-sub">Surplus +165W generated. Steady-state bus is positive.</div>
+                  </div>
+                  <span class="check-pill nominal" id="chk-power-pill">PASS</span>
+                </div>
+
+                <div class="check-row" id="chk-budget">
+                  <span class="check-icon">✓</span>
+                  <div class="check-info">
+                    <div class="check-title">Project Cost Allocation</div>
+                    <div class="check-sub" id="chk-budget-sub">Total cost $192.0M is within approved $250.0M ceiling.</div>
+                  </div>
+                  <span class="check-pill nominal" id="chk-budget-pill">PASS</span>
+                </div>
+
+                <div class="check-row" id="chk-dv">
+                  <span class="check-icon">✓</span>
+                  <div class="check-info">
+                    <div class="check-title">Astrodynamic Delta-V Reserve</div>
+                    <div class="check-sub" id="chk-dv-sub">150 m/s meets orbital insertion requirement.</div>
+                  </div>
+                  <span class="check-pill nominal" id="chk-dv-pill">PASS</span>
+                </div>
+
+                <div class="check-row" id="chk-comms">
+                  <span class="check-icon">✓</span>
+                  <div class="check-info">
+                    <div class="check-title">Ground Station Telecommunications</div>
+                    <div class="check-sub" id="chk-comms-sub">Ka-Band antenna equipped for telemetry downlink.</div>
+                  </div>
+                  <span class="check-pill nominal" id="chk-comms-pill">PASS</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stage-0 Launch Sequencer Control -->
+            <div class="sequencer-control-card">
+              <div class="card-header">
+                <span class="section-tag">FLIGHT DIRECTOR</span>
+                <span class="clock-label mono" id="sequencer-clock">T-00:00:00</span>
+              </div>
+
+              <div class="sequencer-center">
+                <div class="mission-summary-tile">
+                  <div class="sum-mission" id="sum-mission-name">LEO SATELLITE</div>
+                  <div class="sum-vehicle" id="sum-vehicle-name">FALCON 9 LAUNCH VEHICLE</div>
+                  <div class="sum-vector" id="sum-vector-desc">500KM CIRCULAR EARTH OBSERVATION CONIC</div>
+                </div>
+
+                <!-- Hold-To-Confirm Button -->
+                <div class="hold-button-wrap">
+                  <button id="btn-hold-launch" class="btn-hold-launch" aria-label="Hold one second to initiate launch">
+                    <svg class="hold-ring-svg" viewBox="0 0 120 120">
+                      <circle class="ring-bg" cx="60" cy="60" r="54"/>
+                      <circle class="ring-fill" id="hold-ring-fill" cx="60" cy="60" r="54"/>
+                    </svg>
+                    <div class="hold-btn-text">
+                      <span class="hold-main-text">HOLD TO LAUNCH</span>
+                      <span class="hold-sub-text">1.0s Confirmation</span>
+                    </div>
+                  </button>
+                </div>
+                <div class="hold-hint" id="launch-hint">Click and hold the button for 1 second to initiate ignition sequence.</div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+      </main>
+
+      <!-- ── PERSISTENT BOTTOM NAVIGATION BAR ── -->
+      <footer id="bottom-flow-bar">
+        <div class="flow-left">
+          <button id="btn-flow-prev" class="btn btn-secondary">← Back</button>
         </div>
-
-        <!-- Stage-0 Launch Sequencer -->
-        <div id="sequencer-panel">
-          <div class="sequencer-check-label">PRIMARY DIRECTIVE CHECK</div>
-          <button id="btn-launch" class="btn-launch" disabled>
-            <span class="launch-title">STAGE-0 LAUNCH SEQUENCER</span>
-            <span class="launch-sub" id="launch-sub-status">ALL SYSTEMS NOMINAL REQUIRED</span>
-          </button>
+        <div class="flow-center">
+          <span class="flow-step-dots">
+            <span class="step-dot active" data-step="01"></span>
+            <span class="step-dot" data-step="02"></span>
+            <span class="step-dot" data-step="03"></span>
+            <span class="step-dot" data-step="04"></span>
+            <span class="step-dot" data-step="05"></span>
+          </span>
         </div>
-      </section>
+        <div class="flow-right">
+          <button id="btn-flow-next" class="btn btn-primary">Next: Select Vehicle →</button>
+        </div>
+      </footer>
 
-    </main>
-
-  </div>
-
-  <!-- ═══ FULLSCREEN LAUNCH COUNTDOWN OVERLAY ═══ -->
-  <div id="launch-overlay" class="hidden">
-    <div class="launch-modal">
-      <div class="launch-tag">STAGE-0 TERMINAL COUNTDOWN</div>
-      <div class="launch-big-count" id="countdown-text">T-10</div>
-      <div class="launch-target-desc" id="launch-target-desc">IGNITION SEQUENCE INITIATED</div>
-      <div class="launch-progress-track"><div class="launch-progress-fill" id="launch-progress-fill"></div></div>
     </div>
-  </div>
 
-  <!-- ═══ SOURCES & CREDITS MODAL ═══ -->
-  <div id="sources-modal" class="modal-overlay hidden">
-    <div class="modal-box">
-      <div class="modal-header">
-        <span>◈ DATA SOURCES &amp; TECHNICAL CREDITS</span>
-        <button id="btn-close-sources" class="close-btn">✕</button>
-      </div>
-      <div class="modal-body">
-        <h3>NASA &amp; JPL Technical Sources</h3>
-        <ul>
-          <li><strong>NASA Launch Services Program (LSP)</strong> — Vehicle mass to orbit and mission cost benchmarks.<br>
-            <a href="https://www.nasa.gov/launch-services-program" target="_blank" rel="noopener">nasa.gov/launch-services-program</a></li>
-          <li><strong>SpaceX Falcon 9 &amp; Falcon Heavy</strong> — Payload user's guide, fairing capacity, and orbital delivery.<br>
-            <a href="https://www.spacex.com/vehicles/falcon-9/" target="_blank" rel="noopener">spacex.com/vehicles/falcon-9</a></li>
-          <li><strong>NASA SLS Program</strong> — Space Launch System Block 1 lift capability.<br>
-            <a href="https://www.nasa.gov/exploration/systems/sls/index.html" target="_blank" rel="noopener">nasa.gov/exploration/systems/sls</a></li>
-          <li><strong>NASA JPL Solar System Dynamics (SSD)</strong> — Astrodynamics, orbital propagation, and conic solutions.<br>
-            <a href="https://ssd.jpl.nasa.gov/" target="_blank" rel="noopener">ssd.jpl.nasa.gov</a></li>
-          <li><strong>NASA Glenn Research Center — NEXT-C Ion Propulsion</strong><br>
-            <a href="https://www1.grc.nasa.gov/space/sep/next-c/" target="_blank" rel="noopener">grc.nasa.gov/space/sep/next-c</a></li>
-          <li><strong>NASA JPL Mars Exploration — MMRTG Power System</strong><br>
-            <a href="https://mars.nasa.gov/msl/spacecraft/rover/power/" target="_blank" rel="noopener">mars.nasa.gov/msl/spacecraft/rover/power</a></li>
-          <li><strong>NASA InSight Mission — UltraFlex High Specific Power Solar Arrays</strong><br>
-            <a href="https://mars.nasa.gov/insight/spacecraft/about-the-lander/" target="_blank" rel="noopener">mars.nasa.gov/insight/spacecraft</a></li>
-          <li><strong>NASA Deep Space Network (DSN)</strong> — Telecom link margin, Ka-Band dish downlinks.<br>
-            <a href="https://www.jpl.nasa.gov/missions/dsn" target="_blank" rel="noopener">jpl.nasa.gov/missions/dsn</a></li>
-        </ul>
-        <h3>AI-Assistance Statement</h3>
-        <p>UI wireframe generated with v0.dev. Code written with AI assistance and reviewed/tested by the author (Shaikh Mo. Hadin, team Rust Planet). All launch vehicle capacities, power margins, and astrodynamic parameters were verified against authentic NASA/JPL engineering documents.</p>
-        <h3>Hackathon Entry</h3>
-        <p><strong>Shaikh Mo. Hadin</strong> — Team Rust Planet<br>NASA Space Apps Challenge 2026</p>
+    <!-- ── CHIEF AVIONICS ADVISOR RIGHT DRAWER (Weight 2) ── -->
+    <div id="advisor-drawer" class="drawer-overlay hidden">
+      <div class="drawer-panel">
+        <div class="drawer-header">
+          <div class="drawer-title-group">
+            <span class="drawer-icon">◉</span>
+            <h2 class="drawer-title">Chief Avionics Advisor</h2>
+          </div>
+          <button id="btn-close-advisor" class="btn btn-ghost btn-sm" aria-label="Close Advisor Drawer">✕</button>
+        </div>
+        <div class="drawer-body">
+          <div class="advisor-status-summary" id="advisor-summary-text">
+            All systems within primary engineering margins.
+          </div>
+          <div class="advisor-alerts-list" id="advisor-alerts-list"></div>
+        </div>
       </div>
     </div>
+
+    <!-- ── POPUP: AMBIENT TELEMETRY (Weight 1) ── -->
+    <div id="telemetry-popover" class="popover-modal hidden">
+      <div class="popover-box">
+        <div class="popover-header">
+          <span>📡 AMBIENT TELEMETRY</span>
+          <button id="btn-close-telemetry" class="btn btn-ghost btn-xs">✕</button>
+        </div>
+        <div class="popover-body">
+          <div class="popover-row"><span>MISSION ELAPSED:</span> <strong class="mono" id="ambient-met">T+142:08:24:19</strong></div>
+          <div class="popover-row"><span>UTC REFERENCE:</span> <strong class="mono" id="ambient-utc">2026-318 // 19:00:00</strong></div>
+          <div class="popover-row"><span>DSN UPLINK LOCK:</span> <strong class="mono nominal">LOCKED // DSN-14</strong></div>
+          <div class="popover-row"><span>TRANSMITTER EIRP:</span> <strong class="mono">64.2 dBW</strong></div>
+          <div class="popover-row"><span>DOWNLINK BANDWIDTH:</span> <strong class="mono" id="ambient-downlink">84.2 MB/S</strong></div>
+          <div class="popover-row"><span>PRIMARY GROUND STATION:</span> <strong class="mono">GOLDSTONE COMPLEX</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── POPUP: SHORTCUTS HELP ── -->
+    <div id="shortcuts-popover" class="popover-modal hidden">
+      <div class="popover-box">
+        <div class="popover-header">
+          <span>KEYBOARD NAVIGATION</span>
+          <button id="btn-close-shortcuts" class="btn btn-ghost btn-xs">✕</button>
+        </div>
+        <div class="popover-body">
+          <div class="shortcut-row"><kbd>1</kbd>–<kbd>5</kbd> <span>Switch Workflow Stages</span></div>
+          <div class="shortcut-row"><kbd>Q</kbd>–<kbd>T</kbd> <span>Switch Subsystem Categories</span></div>
+          <div class="shortcut-row"><kbd>M</kbd> <span>Toggle Synthesized Audio</span></div>
+          <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>Z</kbd> <span>Undo Last Action</span></div>
+          <div class="shortcut-row"><kbd>Space</kbd> <span>Initiate Launch (in Stage 05)</span></div>
+          <div class="shortcut-row"><kbd>Esc</kbd> <span>Close Drawers &amp; Skip Sequences</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FULLSCREEN CINEMATIC LAUNCH SEQUENCE ── -->
+    <div id="cinematic-overlay" class="hidden">
+      <div class="cinematic-content">
+        <div class="cinematic-stage-label" id="cine-stage-label">STAGE-0 IGNITION</div>
+        <div class="cinematic-main-text mono" id="cine-main-text">T-10</div>
+        <div class="cinematic-sub-text" id="cine-sub-text">MAIN ENGINE START // VECTOR NOMINAL</div>
+        <div class="cinematic-progress-bar"><div class="cinematic-fill" id="cine-fill"></div></div>
+        <div class="cinematic-skip-hint">Press <kbd>Esc</kbd> to skip to Orbit HUD</div>
+      </div>
+    </div>
+
+    <!-- ── SOURCES & CREDITS MODAL ── -->
+    <div id="sources-modal" class="modal-overlay hidden">
+      <div class="modal-box">
+        <div class="modal-header">
+          <span>◈ NASA DATA SOURCES &amp; SPECIFICATIONS</span>
+          <button id="btn-close-sources" class="btn btn-ghost btn-sm">✕</button>
+        </div>
+        <div class="modal-body">
+          <h3>NASA &amp; Aerospace Sources</h3>
+          <ul>
+            <li><strong>NASA Launch Services Program (LSP)</strong> — Real mass-to-orbit limits and booster costs.<br>
+              <a href="https://www.nasa.gov/launch-services-program" target="_blank" rel="noopener">nasa.gov/launch-services-program</a></li>
+            <li><strong>SpaceX Falcon 9 &amp; Falcon Heavy Payload User's Guide</strong><br>
+              <a href="https://www.spacex.com/vehicles/falcon-9/" target="_blank" rel="noopener">spacex.com/vehicles/falcon-9</a></li>
+            <li><strong>NASA SLS Block 1 Technical Overview</strong><br>
+              <a href="https://www.nasa.gov/exploration/systems/sls/index.html" target="_blank" rel="noopener">nasa.gov/exploration/systems/sls</a></li>
+            <li><strong>NASA Glenn Research Center — NEXT-C Evolutionary Xenon Thruster</strong><br>
+              <a href="https://www1.grc.nasa.gov/space/sep/next-c/" target="_blank" rel="noopener">grc.nasa.gov/space/sep/next-c</a></li>
+            <li><strong>NASA JPL Mars MMRTG Radioisotope Stirling Specs</strong><br>
+              <a href="https://mars.nasa.gov/msl/spacecraft/rover/power/" target="_blank" rel="noopener">mars.nasa.gov/msl/spacecraft/rover/power</a></li>
+            <li><strong>NASA InSight Mission — UltraFlex Solar Arrays</strong><br>
+              <a href="https://mars.nasa.gov/insight/spacecraft/about-the-lander/" target="_blank" rel="noopener">mars.nasa.gov/insight/spacecraft</a></li>
+            <li><strong>NASA Deep Space Network (DSN)</strong> — Telecom link margin and frequency allocations.<br>
+              <a href="https://www.jpl.nasa.gov/missions/dsn" target="_blank" rel="noopener">jpl.nasa.gov/missions/dsn</a></li>
+          </ul>
+          <h3>AI Attribution</h3>
+          <p>UI wireframe generated with v0.dev. Code written with AI assistance and reviewed/tested by the author (Shaikh Mo. Hadin, team Rust Planet). All physical parameters and astrodynamic formulas mathematically verified against authentic NASA/JPL references.</p>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script src="app.js"></script>
