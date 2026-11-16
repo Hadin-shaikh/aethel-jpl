@@ -36,45 +36,121 @@ const VEHICLES = {
   }
 };
 
+// ── VERIFIED NASA CELESTIAL BODY REFERENCE DATA ──
+const CELESTIAL_BODIES = {
+  earth: {
+    id: 'earth',
+    name: 'Earth',
+    radius_km: 6378.137,
+    mu: 398600.4418, // km^3/s^2
+    axial_tilt_deg: 23.44,
+    rotation_period_h: 23.934,
+    defaultAltKm: 500.0,
+    inc: '51.6°',
+    speedOfLightDelaySec: 0.002,
+    delayLabel: '< 0.1s latency',
+    delayNote: 'Nominal sub-second DSN uplink.',
+    solarFluxRatio: 1.0,
+    source_url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html'
+  },
+  moon: {
+    id: 'moon',
+    name: 'Moon',
+    radius_km: 1737.4,
+    mu: 4902.8, // km^3/s^2
+    axial_tilt_deg: 6.68,
+    rotation_period_h: 655.728, // 27.322 days (tidally locked)
+    mean_distance_km: 384400.0,
+    defaultAltKm: 100.0,
+    inc: '28.5°',
+    speedOfLightDelaySec: 1.28,
+    delayLabel: '1.3s delay (one-way)',
+    delayNote: '1.3s one-way light travel time to Earth.',
+    solarFluxRatio: 1.0,
+    source_url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html'
+  },
+  mars: {
+    id: 'mars',
+    name: 'Mars',
+    radius_km: 3389.5,
+    mu: 42828.3, // km^3/s^2
+    axial_tilt_deg: 25.19,
+    rotation_period_h: 24.623,
+    mean_distance_sun_au: 1.524,
+    defaultAltKm: 250.0,
+    inc: '1.85°',
+    speedOfLightDelaySec: 840, // ~14 min average (3 to 22 min)
+    delayLabel: '3–22m delay (~14m avg)',
+    delayNote: 'Comms delay requires autonomous fault response.',
+    solarFluxRatio: 0.4307, // 1 / (1.524^2) = 0.4307 (~43% solar flux)
+    source_url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html'
+  }
+};
+
 // ── ASTRODYNAMICS MISSION PROFILES ──
 const MISSIONS = {
   leo: {
     name: 'LEO Satellite',
     type: 'leo',
+    bodyId: 'earth',
     targetData: 10,
-    targetVel: '7.613 km/s',
+    altitudeKm: 500.0,
     periapsis: '500.0 km',
     apoapsis: '500.0 km',
     inc: '51.6°',
     dvReq: 150,
-    periodMin: 94.62,
     code: 'M-LEO-500K'
   },
   lunar: {
     name: 'Lunar Rover',
     type: 'lunar',
+    bodyId: 'moon',
     targetData: 5,
-    targetVel: '10.920 km/s',
-    periapsis: '185.0 km',
-    apoapsis: '384,400 km',
+    altitudeKm: 100.0,
+    periapsis: '100.0 km (Lunar Orbit)',
+    apoapsis: '100.0 km',
     inc: '28.5°',
     dvReq: 3100,
-    periodMin: 655.0,
     code: 'M-CISLUNAR-ARTEMIS'
   },
   mars: {
     name: 'Mars Probe',
     type: 'mars',
+    bodyId: 'mars',
     targetData: 2,
-    targetVel: '11.570 km/s',
-    periapsis: '250.0 km',
+    altitudeKm: 250.0,
+    periapsis: '250.0 km (Mars Orbit)',
     apoapsis: 'HOHMANN AP',
     inc: '1.85°',
     dvReq: 5600,
-    periodMin: 372960.0,
     code: 'M-INTERPLANETARY-MARS'
   }
 };
+
+// Compute dynamic Keplerian parameters (nothing hardcoded)
+function computeAstroDynamics(missionKey) {
+  const mission = MISSIONS[missionKey] || MISSIONS.leo;
+  const body = CELESTIAL_BODIES[mission.bodyId] || CELESTIAL_BODIES.earth;
+  const alt = mission.altitudeKm || 500.0;
+  const r = body.radius_km + alt;
+  const v = Math.sqrt(body.mu / r);
+  const periodMin = (2 * Math.PI * Math.sqrt(Math.pow(r, 3) / body.mu)) / 60.0;
+  const vEsc = Math.sqrt((2 * body.mu) / r);
+
+  return {
+    body,
+    altKm: alt,
+    velocityKmS: v,
+    velocityFormatted: `${v.toFixed(3)} km/s`,
+    periodMin: periodMin,
+    periodFormatted: `${periodMin.toFixed(1)} min`,
+    escapeVelKmS: vEsc,
+    escapeFormatted: `${vEsc.toFixed(3)} km/s`,
+    inc: mission.inc,
+    periapsis: mission.periapsis,
+    apoapsis: mission.apoapsis
+  };
+}
 
 // ── REALISTIC NASA/JPL SUBSYSTEM DATABASE ──
 const SUBSYSTEMS = {
@@ -393,6 +469,8 @@ let orbitScene = null;
 function computeAndRender() {
   const vehicle = VEHICLES[STATE.vehicle] || VEHICLES.falcon9;
   const mission = MISSIONS[STATE.mission] || MISSIONS.leo;
+  const astro = computeAstroDynamics(STATE.mission);
+  const body = astro.body;
 
   let totalMass = 0;
   let totalGen = 0;
@@ -406,8 +484,13 @@ function computeAndRender() {
         totalMass += item.mass;
         totalCost += item.cost;
         totalData += item.data;
-        if (item.power > 0) totalGen += item.power;
-        else if (item.power < 0) totalLoad += Math.abs(item.power);
+        if (item.power > 0) {
+          // Solar flux drops with inverse-square law at Mars (1.52 AU -> 43% flux)
+          const fluxRatio = item.id.includes('solar') ? body.solarFluxRatio : 1.0;
+          totalGen += Math.round(item.power * fluxRatio);
+        } else if (item.power < 0) {
+          totalLoad += Math.abs(item.power);
+        }
       }
     }
   }
@@ -434,8 +517,11 @@ function computeAndRender() {
   }
 
   // 2. Update Power Tile
+  const solarNote = (STATE.mission === 'mars' && STATE.equipped.has('solar-ultraflex'))
+    ? ' (43% solar flux at 1.52 AU)'
+    : '';
   if (DOM.valPower) DOM.valPower.textContent = (netPower >= 0 ? '+' : '') + netPower;
-  if (DOM.subPower) DOM.subPower.textContent = `W net (gen: ${totalGen}W, load: ${totalLoad}W)`;
+  if (DOM.subPower) DOM.subPower.textContent = `W net (gen: ${totalGen}W${solarNote}, load: ${totalLoad}W)`;
   if (DOM.fillPower) {
     const pRatio = Math.max(0, Math.min(100, (netPower >= 0 ? 50 + netPower / 10 : 50 - Math.abs(netPower) / 10)));
     DOM.fillPower.style.width = `${pRatio}%`;
@@ -484,7 +570,7 @@ function computeAndRender() {
     }
   }
 
-  // 5. Update DSN Link Margin Tile
+  // 5. Update DSN Link Margin Tile (With Distance-Based Light Time Delay)
   const hasKa = STATE.equipped.has('antenna-kaband');
   const hasX = STATE.equipped.has('antenna-xband');
   const hasS = STATE.equipped.has('antenna-sband');
@@ -494,12 +580,24 @@ function computeAndRender() {
   else if (hasX) { dsnMargin = 18.2; bandName = 'X-Band (34m)'; }
   else if (hasS) { dsnMargin = 12.4; bandName = 'S-Band (34m)'; }
 
+  if (STATE.mission === 'mars' && dsnMargin > 0) {
+    dsnMargin = Math.max(2.1, dsnMargin - 7.2);
+  } else if (STATE.mission === 'lunar' && dsnMargin > 0) {
+    dsnMargin = Math.max(4.0, dsnMargin - 1.2);
+  }
+
   if (DOM.valDsn) DOM.valDsn.textContent = dsnMargin > 0 ? `+${dsnMargin.toFixed(1)}` : '0.0';
-  if (DOM.subDsn) DOM.subDsn.textContent = `dB (${bandName})`;
+  if (DOM.subDsn) {
+    DOM.subDsn.innerHTML = `dB (${bandName}) • <b style="color: #0284C7;">${body.delayLabel}</b>`;
+  }
+  const noteDsn = document.getElementById('note-dsn');
+  if (noteDsn) {
+    noteDsn.textContent = body.delayNote || '';
+  }
   if (DOM.chipDsn) {
     if (dsnMargin >= 12.0) {
       DOM.chipDsn.className = 'vital-chip ok';
-      DOM.chipDsn.textContent = `+${dsnMargin} dB`;
+      DOM.chipDsn.textContent = `+${dsnMargin.toFixed(1)} dB`;
     } else if (dsnMargin > 0) {
       DOM.chipDsn.className = 'vital-chip warn';
       DOM.chipDsn.textContent = 'MARGIN LOW';
@@ -509,18 +607,18 @@ function computeAndRender() {
     }
   }
 
-  // Viewport Stats
-  if (DOM.vpAlt) DOM.vpAlt.textContent = mission.periapsis;
-  if (DOM.vpInc) DOM.vpInc.textContent = mission.inc;
-  if (DOM.vpPeriod) DOM.vpPeriod.textContent = `${mission.periodMin} min`;
+  // Viewport Dynamic Astrodynamic Stats (Never hardcoded)
+  if (DOM.vpAlt) DOM.vpAlt.textContent = astro.periapsis;
+  if (DOM.vpInc) DOM.vpInc.textContent = astro.inc;
+  if (DOM.vpPeriod) DOM.vpPeriod.textContent = astro.periodFormatted;
 
   // Outfitter Count
   if (DOM.outfitterCount) DOM.outfitterCount.textContent = `${STATE.equipped.size} Equipped`;
 
-  // Synchronize 3D Satellite Modules
+  // Synchronize 3D Celestial Body & Satellite Modules
   if (orbitScene) {
+    orbitScene.setMission(STATE.mission);
     orbitScene.updateSatelliteModules(STATE.equipped);
-    orbitScene.updateOrbitTrajectory(STATE.mission);
   }
 
   // Execute 10 Design Review Rules
@@ -750,29 +848,50 @@ function drawConicCanvas() {
   const earthX = Math.max(70, w * 0.12);
   const earthY = h / 2;
 
-  // Earth Globe Circle
-  ctx.fillStyle = '#0B6E99';
+  // Adapt central body and node text according to active mission
+  let bodyName = 'EARTH';
+  let bodyColor = '#0B6E99';
+  let bodyBorder = '#93C5FD';
+  let node1Text = 'NODE 1: INJECTION';
+  let node2Text = 'NODE 2: CIRC';
+
+  if (STATE.mission === 'lunar') {
+    bodyName = 'MOON';
+    bodyColor = '#475569';
+    bodyBorder = '#CBD5E1';
+    node1Text = 'NODE 1: TLI BURN';
+    node2Text = 'NODE 2: LOI CAPTURE';
+  } else if (STATE.mission === 'mars') {
+    bodyName = 'MARS';
+    bodyColor = '#C2410C';
+    bodyBorder = '#FDBA74';
+    node1Text = 'NODE 1: TMI BURN';
+    node2Text = 'NODE 2: MOI BRAKING';
+  }
+
+  // Central Body Globe Circle
+  ctx.fillStyle = bodyColor;
   ctx.beginPath();
   ctx.arc(earthX, earthY, 22, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = '#93C5FD';
+  ctx.strokeStyle = bodyBorder;
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Crisp Earth label
+  // Crisp body label
   ctx.fillStyle = '#FFFFFF';
   ctx.font = "bold 11px system-ui, -apple-system, sans-serif";
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('EARTH', earthX, earthY);
+  ctx.fillText(bodyName, earthX, earthY);
 
   // Orbital Transfer Ellipse
   const centerX = w * 0.52;
   const radiusX = w * 0.38;
   const radiusY = Math.min(55, h * 0.32);
 
-  ctx.strokeStyle = '#0B6E99';
+  ctx.strokeStyle = bodyColor;
   ctx.lineWidth = 2;
   ctx.setLineDash([6, 5]);
   ctx.beginPath();
@@ -824,15 +943,15 @@ function drawConicCanvas() {
     ctx.fillText(text, x, pillY + pillH / 2);
   }
 
-  // Injection Node 1 (Offset above)
+  // Maneuver Node 1 (Offset above)
   const node1X = centerX - radiusX * 0.45;
   const node1Y = earthY - radiusY * 0.88;
-  drawNodePill(node1X, node1Y, 'NODE 1: INJECTION', '#B45309', true);
+  drawNodePill(node1X, node1Y, node1Text, '#B45309', true);
 
-  // Circulation Node 2 (Offset below)
+  // Maneuver Node 2 (Offset below)
   const node2X = centerX + radiusX * 0.70;
   const node2Y = earthY + radiusY * 0.72;
-  drawNodePill(node2X, node2Y, 'NODE 2: CIRC', '#15803D', false);
+  drawNodePill(node2X, node2Y, node2Text, '#15803D', false);
 
   // Animated Satellite Marker
   conicAngle += 0.015 * STATE.timeWarp;
@@ -1027,6 +1146,7 @@ function setupNavigation() {
       document.querySelectorAll('.mission-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       STATE.mission = tab.dataset.mission;
+      if (orbitScene) orbitScene.setMission(STATE.mission);
       computeAndRender();
     });
   });
@@ -1183,6 +1303,21 @@ function updateClocks() {
   if (DOM.canvas3dWrap && typeof Orbit3DScene === 'function') {
     orbitScene = new Orbit3DScene(DOM.canvas3dWrap, { state: STATE });
   }
+
+  // Support URL query parameters for direct state deep-linking (e.g. ?mission=mars&stage=mars_orbit)
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('mission') && MISSIONS[params.get('mission')]) {
+      STATE.mission = params.get('mission');
+      document.querySelectorAll('.mission-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.mission === STATE.mission);
+      });
+      if (orbitScene) orbitScene.setMission(STATE.mission);
+    }
+    if (params.has('stage') && orbitScene) {
+      orbitScene.setStage(params.get('stage'));
+    }
+  } catch (e) {}
 
   computeAndRender();
 

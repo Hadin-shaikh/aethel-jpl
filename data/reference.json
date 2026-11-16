@@ -17,6 +17,73 @@
       "unit": "m/s^2",
       "source_url": "https://physics.nist.gov/cgi-bin/cuu/Value?gn",
       "note": "Standard acceleration of gravity at Earth sea level (CODATA / NIST)."
+    },
+    "speed_of_light": {
+      "value": 299792.458,
+      "unit": "km/s",
+      "source_url": "https://physics.nist.gov/cgi-bin/cuu/Value?c",
+      "note": "Speed of light in vacuum."
+    },
+    "astronomical_unit": {
+      "value": 149597870.7,
+      "unit": "km",
+      "source_url": "https://ssd.jpl.nasa.gov/astro_constants.html",
+      "note": "Mean distance from Earth to Sun."
+    }
+  },
+  "celestial_bodies": {
+    "earth": {
+      "name": "Earth",
+      "radius_km": 6378.137,
+      "mu": 398600.4418,
+      "axial_tilt_deg": 23.44,
+      "rotation_period_h": 23.934,
+      "texture": "assets/textures/earth_day_2048.jpg",
+      "clouds_texture": "assets/textures/earth_clouds.png",
+      "atmosphere": {
+        "has_atmosphere": true,
+        "color": "#5aa9ff",
+        "opacity": 0.40,
+        "scale": 1.025
+      },
+      "source_url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html",
+      "note": "NASA Earth Fact Sheet."
+    },
+    "moon": {
+      "name": "Moon",
+      "radius_km": 1737.4,
+      "mu": 4902.80,
+      "axial_tilt_deg": 6.68,
+      "rotation_period_h": 655.728,
+      "rotation_period_days": 27.322,
+      "mean_distance_km": 384400.0,
+      "texture": "assets/textures/moon_color.jpg",
+      "disc_thumbnail": "assets/textures/moon_disc.jpg",
+      "atmosphere": {
+        "has_atmosphere": false
+      },
+      "source_url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html",
+      "note": "NASA Moon Fact Sheet; tidally locked with Earth."
+    },
+    "mars": {
+      "name": "Mars",
+      "radius_km": 3389.5,
+      "mu": 42828.3,
+      "axial_tilt_deg": 25.19,
+      "rotation_period_h": 24.623,
+      "mean_distance_sun_au": 1.524,
+      "min_distance_earth_km": 54600000.0,
+      "max_distance_earth_km": 401000000.0,
+      "texture": "assets/textures/mars_color.jpg",
+      "disc_thumbnail": "assets/textures/mars_disc.jpg",
+      "atmosphere": {
+        "has_atmosphere": true,
+        "color": "#e07a48",
+        "opacity": 0.22,
+        "scale": 1.018
+      },
+      "source_url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html",
+      "note": "NASA Mars Fact Sheet."
     }
   },
   "launch_vehicles": {
@@ -173,17 +240,18 @@
       "name": "LEO Satellite (Earth Observation)",
       "target_altitude_km": 500.0,
       "inclination_deg": 51.6,
+      "body": "earth",
       "orbital_velocity": {
         "value": 7.613,
         "unit": "km/s",
         "source_url": "https://ssd.jpl.nasa.gov/",
-        "note": "Calculated from vis-viva equation at 500 km altitude."
+        "note": "Calculated from vis-viva equation at 500 km altitude: sqrt(mu_earth / (R_earth + 500))."
       },
       "period_min": {
         "value": 94.6,
         "unit": "min",
         "source_url": "https://ssd.jpl.nasa.gov/",
-        "note": "Calculated: T = 2 * pi * sqrt(a^3 / mu)."
+        "note": "Calculated: T = 2 * pi * sqrt(a^3 / mu_earth)."
       },
       "eclipse_duration_min": {
         "value": 35.8,
@@ -200,48 +268,50 @@
     },
     "lunar": {
       "name": "Lunar Rover (Artemis Relay)",
-      "target_altitude_km": 384400.0,
-      "inclination_deg": 28.5,
+      "target_altitude_km": 100.0,
+      "inclination_deg": 86.0,
+      "body": "moon",
       "orbital_velocity": {
-        "value": 10.92,
+        "value": 1.633,
         "unit": "km/s",
         "source_url": "https://ssd.jpl.nasa.gov/",
-        "note": "Trans-Lunar Injection velocity from 185 km parking orbit."
+        "note": "Circular lunar orbit speed at 100 km altitude: sqrt(mu_moon / (R_moon + 100))."
       },
       "period_min": {
-        "value": 655.0,
+        "value": 118.4,
         "unit": "min",
         "source_url": "https://ssd.jpl.nasa.gov/",
-        "note": "estimate: Free-return elliptical trajectory period."
+        "note": "Calculated: T = 2 * pi * sqrt((R_moon + 100)^3 / mu_moon)."
       },
       "dv_requirement": {
-        "value": 3100,
+        "value": 3920,
         "unit": "m/s",
         "source_url": "https://www.nasa.gov/exploration/systems/sls/index.html",
-        "note": "TLI burn delta-V requirement from 185 km parking orbit."
+        "note": "Earth departure TLI (3,100 m/s) + Lunar orbit insertion LOI (820 m/s)."
       }
     },
     "mars": {
       "name": "Mars Probe (Interplanetary)",
-      "target_altitude_km": 225000000.0,
-      "inclination_deg": 1.85,
+      "target_altitude_km": 250.0,
+      "inclination_deg": 92.8,
+      "body": "mars",
       "orbital_velocity": {
-        "value": 11.57,
+        "value": 3.431,
         "unit": "km/s",
         "source_url": "https://ssd.jpl.nasa.gov/",
-        "note": "Heliocentric hyperbolic departure velocity."
+        "note": "Circular Mars orbit speed at 250 km altitude: sqrt(mu_mars / (R_mars + 250))."
       },
       "period_min": {
-        "value": 372960.0,
+        "value": 118.2,
         "unit": "min",
         "source_url": "https://ssd.jpl.nasa.gov/",
-        "note": "Hohmann transfer half-period (~259 days)."
+        "note": "Calculated: T = 2 * pi * sqrt((R_mars + 250)^3 / mu_mars)."
       },
       "dv_requirement": {
-        "value": 5600,
+        "value": 5700,
         "unit": "m/s",
         "source_url": "https://www.nasa.gov/launch-services-program/",
-        "note": "Trans-Mars Injection (TMI) + Mars orbit capture budget."
+        "note": "Trans-Mars Injection TMI (3,600 m/s) + Mars orbit insertion MOI (2,100 m/s)."
       }
     }
   }

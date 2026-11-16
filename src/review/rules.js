@@ -43,7 +43,12 @@ function evaluateDesignRules(state, subsystemsDb, vehicleSpecs, missionSpecs, re
         totalData += it.data;
 
         if (it.power > 0) {
-          totalGen += it.power;
+          let gen = it.power;
+          // Apply inverse-square solar flux reduction at Mars (1 / 1.524^2 = 0.4307)
+          if (state.mission === 'mars' && it.id.includes('solar')) {
+            gen = Math.round(it.power * 0.4307);
+          }
+          totalGen += gen;
           powerSourcesCount++;
           if (it.id.includes('rtg')) hasRtg = true;
           if (it.id.includes('solar')) hasSolar = true;
@@ -345,13 +350,53 @@ function evaluateDesignRules(state, subsystemsDb, vehicleSpecs, missionSpecs, re
   } else if (state.mission === 'mars' && hasSolar && !hasRtg) {
     findings.push({
       id: 'rule-fit-solar-mars',
-      severity: 'info',
-      title: 'Solar Intensity Drop at Mars Orbit [est.]',
-      what_is_wrong: `Solar flux at Mars (1.52 AU) drops to 43% of Earth levels (590 W/m^2 vs 1,361 W/m^2).`,
+      severity: 'warning',
+      title: 'Solar Intensity Drop at Mars Orbit (43% Solar Flux)',
+      what_is_wrong: `Solar flux at Mars (1.52 AU) drops to 43% of Earth levels (590 W/m² vs 1,361 W/m²).`,
       likely_cause: `Standard solar array equipped for deep interplanetary trajectory.`,
-      why_it_matters: `Solar array power output degrades from 450 W at Earth departure to ~195 W at Mars capture.`,
-      fix: `Add Plutonium-238 RTG for continuous deep-space power independent of solar distance.`,
-      data_used: `Inverse-square solar flux: 1 / (1.52)^2 = 0.433`
+      why_it_matters: `Solar array power output degrades from 450 W at Earth departure to ~195 W at Mars capture. The power margin will turn negative during high-load science sweeps.`,
+      fix: `Equip NextGen Plutonium-238 RTG for continuous deep-space power independent of solar distance.`,
+      data_used: `Inverse-square solar flux: 1 / (1.524)² = 0.430 (43.0% of Earth flux)`,
+      autoFix: {
+        label: 'Equip Plutonium RTG (+350W)',
+        action: () => {
+          state.equipped.add('rtg-plutonium');
+        }
+      }
+    });
+  }
+
+  // Lunar 14-day night survival check
+  if (state.mission === 'lunar' && !hasRtg) {
+    findings.push({
+      id: 'rule-lunar-night-survival',
+      severity: 'warning',
+      title: '14-Day Lunar Night Temperature & Battery Depletion',
+      what_is_wrong: `No radioisotope power supply (RTG) equipped for lunar surface night survival.`,
+      likely_cause: `Equipped solar arrays and chemical battery buffer only.`,
+      why_it_matters: `A single lunar night lasts 14 Earth days (336 hours). Solar flux is 0 W, and secondary batteries will deplete within hours, causing cryogenic freezing (-230°C).`,
+      fix: `Equip NextGen Plutonium-238 RTG for continuous thermal and electrical power throughout lunar darkness.`,
+      data_used: `Moon night duration: 14.75 days (354 hours), Temperature: ~40 K (-233°C).`,
+      autoFix: {
+        label: 'Equip Plutonium RTG (+350W)',
+        action: () => {
+          state.equipped.add('rtg-plutonium');
+        }
+      }
+    });
+  }
+
+  // Mars communication latency advisory
+  if (state.mission === 'mars') {
+    findings.push({
+      id: 'rule-mars-comms-latency',
+      severity: 'info',
+      title: 'Interplanetary Comms Latency (3 to 22 min one-way)',
+      what_is_wrong: `One-way radio signal travel time to Mars varies from 3 to 22 minutes (average ~12.5 min).`,
+      likely_cause: `Planetary orbital geometry between Earth and Mars (0.38 AU to 2.67 AU).`,
+      why_it_matters: `Real-time remote joy-stick teleoperation is physically impossible. Spacecraft flight software must autonomously execute fault detection and terrain hazard avoidance.`,
+      fix: `Ensure high-bandwidth Ka-band or X-band antenna is equipped for store-and-forward batch telemetry downlinks.`,
+      data_used: `One-way light time: distance / c = 54.6M to 401M km / 299,792 km/s = 3.0 to 22.3 min.`
     });
   }
 

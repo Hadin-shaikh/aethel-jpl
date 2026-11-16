@@ -475,7 +475,7 @@ svg {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 16px;
+  padding: 12px 14px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -496,16 +496,40 @@ svg {
   box-shadow: 0 0 0 1px var(--accent), var(--shadow-sm);
 }
 
+.mission-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  background: #000000;
+}
+
+.mission-tab-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tab-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .tab-code {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: var(--surface-subtle);
   color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -516,15 +540,83 @@ svg {
 }
 
 .tab-name {
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 700;
   color: var(--text-main);
-  margin-right: 6px;
 }
 
 .tab-sub {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted);
+}
+
+/* Viewport Stage Stepper Tabs (Transfer, Orbit, Landing Site) */
+.viewport-stage-stepper {
+  position: absolute;
+  top: 48px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 4px;
+  border-radius: 20px;
+  z-index: 15;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.stage-step-btn {
+  background: transparent;
+  border: none;
+  color: #94A3B8;
+  padding: 5px 12px;
+  border-radius: 14px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stage-step-btn:hover {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.stage-step-btn.active {
+  background: var(--accent);
+  color: #FFFFFF;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* "NOT TO SCALE" Schematic Badge */
+.not-to-scale-badge {
+  position: absolute;
+  bottom: 48px;
+  left: 14px;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #FCD34D;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  z-index: 15;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.not-to-scale-badge.hidden {
+  display: none !important;
 }
 
 /* ── Middle Grid (3D Viewport + Payload Outfitter) ── */
@@ -1486,6 +1578,7 @@ svg {
             <span class="vital-val mono" id="val-dsn">+23.4</span>
             <span class="vital-sub" id="sub-dsn">dB (Goldstone)</span>
           </div>
+          <div class="vital-note" id="note-dsn" style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px; font-weight: 500;"></div>
           <div class="vital-progress"><div class="vital-bar-fill" id="fill-dsn" style="width: 82%;"></div></div>
           <button class="math-toggle" data-math="dsn">Show the math ❯</button>
         </div>
@@ -1505,19 +1598,34 @@ svg {
         <!-- 3 Trajectory Profiles -->
         <div class="mission-strip">
           <button class="mission-tab active" data-mission="leo">
-            <span class="tab-code">01</span>
-            <span class="tab-name">LEO SAT</span>
-            <span class="tab-sub">500 km • Earth Observation</span>
+            <img class="mission-thumb" src="assets/textures/earth_day_2048.jpg" alt="Earth LEO">
+            <div class="mission-tab-body">
+              <div class="tab-title-row">
+                <span class="tab-code">01</span>
+                <span class="tab-name">LEO SAT</span>
+              </div>
+              <span class="tab-sub">500 km • Earth Observation</span>
+            </div>
           </button>
           <button class="mission-tab" data-mission="lunar">
-            <span class="tab-code">02</span>
-            <span class="tab-name">LUNAR ROV</span>
-            <span class="tab-sub">TLI Burn • Artemis Relay</span>
+            <img class="mission-thumb" src="assets/textures/moon_disc.jpg" alt="Lunar Rover">
+            <div class="mission-tab-body">
+              <div class="tab-title-row">
+                <span class="tab-code">02</span>
+                <span class="tab-name">LUNAR ROV</span>
+              </div>
+              <span class="tab-sub">TLI Burn • Artemis Relay</span>
+            </div>
           </button>
           <button class="mission-tab" data-mission="mars">
-            <span class="tab-code">03</span>
-            <span class="tab-name">MARS PROBE</span>
-            <span class="tab-sub">Hohmann Transfer • Interplanetary</span>
+            <img class="mission-thumb" src="assets/textures/mars_disc.jpg" alt="Mars Probe">
+            <div class="mission-tab-body">
+              <div class="tab-title-row">
+                <span class="tab-code">03</span>
+                <span class="tab-name">MARS PROBE</span>
+              </div>
+              <span class="tab-sub">Hohmann Transfer • Interplanetary</span>
+            </div>
           </button>
         </div>
 
@@ -1792,6 +1900,34 @@ svg {
         <button id="btn-close-sources-modal" class="drawer-close">✕</button>
       </div>
       <div class="modal-body">
+        <!-- Educational Explanation: Tidal Locking -->
+        <div class="source-item" style="border-left: 3px solid #0B6E99; padding-left: 14px; margin-bottom: 16px; background: #F8FAFC; padding-top: 10px; padding-bottom: 10px; border-radius: 4px;">
+          <div class="source-title" style="font-size: 14px; font-weight: 700; color: var(--text-main);">Why does the Moon always show the same face? (Tidal Locking)</div>
+          <p style="margin: 6px 0 4px; color: var(--text-secondary); line-height: 1.5; font-size: 13px;">
+            Gravitational torque from Earth slowed the Moon's spin until its rotation period matched its orbital period (~27.3 days). It does rotate; it just rotates at the exact same rate it orbits Earth (synchronous rotation), keeping the same hemisphere facing us perpetually.
+          </p>
+          <p class="muted" style="font-size: 11.5px; margin: 0;">
+            <b>Astrodynamics takeaway:</b> The far side is never visible from Earth. Lunar South Pole sites (e.g. Shackleton Crater) offer continuous line-of-sight communication with Earth while peering into perpetually shadowed craters containing water ice.
+          </p>
+        </div>
+
+        <!-- Educational Explanation: Synodic Launch Windows -->
+        <div class="source-item" style="border-left: 3px solid #C2410C; padding-left: 14px; margin-bottom: 16px; background: #F8FAFC; padding-top: 10px; padding-bottom: 10px; border-radius: 4px;">
+          <div class="source-title" style="font-size: 14px; font-weight: 700; color: var(--text-main);">Why is the trip to Mars only possible every ~26 months? (Synodic Launch Windows)</div>
+          <p style="margin: 6px 0 4px; color: var(--text-secondary); line-height: 1.5; font-size: 13px;">
+            Earth orbits the Sun in 365 days, Mars in 687 days. A Hohmann transfer requires Earth to be behind Mars by ~44° at launch so the spacecraft intercepts Mars at its aphelion. That geometric alignment recurs every 1 / |(1/365 - 1/687)| ≈ 780 days (25.6 months).
+          </p>
+          <p class="muted" style="font-size: 11.5px; margin: 0;">
+            <b>Astrodynamics takeaway:</b> Missing the synodic launch window means waiting over two years or spending over 3× the Δv for an off-nominal high-energy hyperbolic trajectory.
+          </p>
+        </div>
+
+        <div class="source-item">
+          <div class="source-title">NASA Planetary Fact Sheets (Earth, Moon, Mars)</div>
+          <a class="source-link" href="https://nssdc.gsfc.nasa.gov/planetary/planetfact.html" target="_blank">https://nssdc.gsfc.nasa.gov/planetary/planetfact.html</a>
+          <p class="muted">Verified planetary radii, standard gravitational parameters (μ), axial tilts, rotation periods, and mean orbital distances.</p>
+        </div>
+
         <div class="source-item">
           <div class="source-title">NASA Launch Services Program (LSP)</div>
           <a class="source-link" href="https://www.nasa.gov/launch-services-program/" target="_blank">https://www.nasa.gov/launch-services-program/</a>
@@ -1824,8 +1960,8 @@ svg {
   <!-- ── VENDOR & LOCAL SCRIPTS ── -->
   <script src="assets/vendor/three.min.js"></script>
   <script src="assets/vendor/OrbitControls.js"></script>
-  <script src="src/review/rules.js"></script>
-  <script src="src/orbit3d/scene.js"></script>
-  <script src="app.js"></script>
+  <script src="src/review/rules.js?v=2"></script>
+  <script src="src/orbit3d/scene.js?v=2"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
