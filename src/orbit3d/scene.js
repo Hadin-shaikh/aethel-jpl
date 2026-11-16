@@ -263,20 +263,20 @@ class Orbit3DScene {
       })
     };
 
-    // Mission stages mapping
+    // Mission stages mapping (Default 3D planet orbit first)
     this.stagesPerMission = {
       leo: [
         { id: 'orbit', label: 'LEO Orbit' }
       ],
       lunar: [
-        { id: 'transfer', label: 'Trans-Lunar Arc' },
         { id: 'lunar_orbit', label: 'Lunar Orbit' },
-        { id: 'landing_site', label: 'Landing Site' }
+        { id: 'landing_site', label: 'Landing Site' },
+        { id: 'transfer', label: 'Trans-Lunar Arc' }
       ],
       mars: [
-        { id: 'interplanetary', label: 'Hohmann Transfer' },
+        { id: 'mars_orbit', label: 'Mars Science Orbit' },
         { id: 'arrival', label: 'Capture & Braking' },
-        { id: 'mars_orbit', label: 'Mars Science Orbit' }
+        { id: 'interplanetary', label: 'Hohmann Transfer' }
       ]
     };
 
@@ -374,6 +374,9 @@ class Orbit3DScene {
 
     // ResizeObserver
     this.setupResize();
+
+    // Preload textures for all bodies so mission switches are instantaneous
+    Object.values(this.bodies).forEach(b => b.loadTextures(this.renderer));
 
     // Load initial Earth textures & build LEO scene
     this.setMission('leo');
@@ -578,12 +581,12 @@ class Orbit3DScene {
     if (this.currentMission === missionType) return;
     this.currentMission = missionType;
 
-    // Reset default stage for this mission
+    // Reset default stage for this mission (Always 3D planet orbit first)
     const availableStages = this.stagesPerMission[missionType] || [{ id: 'orbit' }];
     this.currentStage = availableStages[0].id;
     this.renderStageTabs();
-
     this.buildCurrentScene();
+    this.syncViewportTabs();
   }
 
   setStage(stageId) {
@@ -591,6 +594,19 @@ class Orbit3DScene {
     this.currentStage = stageId;
     this.renderStageTabs();
     this.buildCurrentScene();
+    this.syncViewportTabs();
+  }
+
+  syncViewportTabs() {
+    const tabs = document.querySelectorAll('.v-tab');
+    if (!tabs || tabs.length === 0) return;
+    const isTraj = (this.currentStage === 'interplanetary' || this.currentStage === 'transfer');
+    tabs.forEach(tab => {
+      const vtab = tab.dataset.vtab;
+      if (vtab === '3d') tab.classList.toggle('active', !isTraj);
+      else if (vtab === 'traj') tab.classList.toggle('active', isTraj);
+      else if (vtab === '2d') tab.classList.remove('active');
+    });
   }
 
   // Construct Scene for Active Mission & Stage
@@ -756,30 +772,68 @@ class Orbit3DScene {
     this.updateHudLabel('LANDING SITE: SHACKLETON CRATER (89.9° S)', 'Permanently Shadowed Water-Ice Deposit');
   }
 
-  // 3a. Mars Mission: Interplanetary Hohmann Transfer (Sun View)
+  // 3a. Mars Mission: Interplanetary Hohmann Transfer (Sun, Earth, Mars System)
   buildMarsInterplanetaryScene() {
+    // 1. Central Sun
     const sunGeo = new THREE.SphereGeometry(0.8, 32, 32);
     const sunMat = new THREE.MeshBasicMaterial({ color: 0xFDB813 });
     const sunMesh = new THREE.Mesh(sunGeo, sunMat);
     this.schematicGroup.add(sunMesh);
 
+    // Glowing Sun Corona Halo
+    const coronaGeo = new THREE.RingGeometry(0.82, 1.25, 48);
+    const coronaMat = new THREE.MeshBasicMaterial({
+      color: 0xFDE047,
+      transparent: true,
+      opacity: 0.38,
+      side: THREE.DoubleSide
+    });
+    const coronaMesh = new THREE.Mesh(coronaGeo, coronaMat);
+    coronaMesh.rotation.x = Math.PI / 2;
+    this.schematicGroup.add(coronaMesh);
+
     // Earth Orbit (R=3.5)
     const earthRing = this.createSchematicRing(3.5, 0x38BDF8);
     this.schematicGroup.add(earthRing);
+
+    // Earth Sphere at Departure Point (x = -3.5, z = 0)
+    const earthGeo = new THREE.SphereGeometry(0.36, 32, 32);
+    const earthMat = new THREE.MeshStandardMaterial({
+      map: this.bodies.earth.texture || null,
+      color: this.bodies.earth.texture ? 0xFFFFFF : 0x2A628F,
+      roughness: 0.6
+    });
+    const earthMesh = new THREE.Mesh(earthGeo, earthMat);
+    earthMesh.position.set(-3.5, 0, 0);
+    this.schematicGroup.add(earthMesh);
+    this.bodies.earth.loadTextures(this.renderer);
 
     // Mars Orbit (R=5.3)
     const marsRing = this.createSchematicRing(5.3, 0xE07A48);
     this.schematicGroup.add(marsRing);
 
-    // Hohmann Transfer Ellipse Arc (from R=3.5 to R=5.3)
+    // Mars Sphere at Arrival Point (x = +5.3, z = 0)
+    const marsGeo = new THREE.SphereGeometry(0.30, 32, 32);
+    const marsMat = new THREE.MeshStandardMaterial({
+      map: this.bodies.mars.texture || null,
+      color: this.bodies.mars.texture ? 0xFFFFFF : 0xC2410C,
+      roughness: 0.7
+    });
+    const marsMesh = new THREE.Mesh(marsGeo, marsMat);
+    marsMesh.position.set(5.3, 0, 0);
+    this.schematicGroup.add(marsMesh);
+    this.bodies.mars.loadTextures(this.renderer);
+
+    // Hohmann Transfer Ellipse Arc (from Earth at -3.5 to Mars at +5.3)
     this.updateHohmannTransferArcGeometry(3.5, 5.3);
 
     this.orbitLine.visible = true;
     this.satGroup.visible = true;
     this.trailLine.visible = true;
 
-    this.morphCamera(new THREE.Vector3(0, 11.0, 0.01), new THREE.Vector3(0, 0, 0));
-    this.updateHudLabel('MARS HOHMANN TRANSFER', '259 Days Transit • TMI: +3.6 km/s • MOI: -2.1 km/s');
+    // Angled 3D camera giving depth to Sun, Earth, Mars, and the transfer arc
+    this.morphCamera(new THREE.Vector3(0, 9.2, 6.5), new THREE.Vector3(0, 0, 0));
+    this.updateHudLabel('HOHMANN TRANSFER (SOLAR SYSTEM)', 'Earth Departure (-3.5) ➔ Mars Arrival (+5.3) • 259 Days Transit');
   }
 
   // 3b. Mars Mission: Arrival & Capture Braking Burn
@@ -825,7 +879,7 @@ class Orbit3DScene {
     this.trailLine.visible = true;
 
     this.morphCamera(new THREE.Vector3(4.8, 2.2, 5.4), new THREE.Vector3(0, 0, 0));
-    this.updateHudLabel('MARS PROBE', '250 km • 92.8° • T: 118.2 min');
+    this.updateHudLabel('MARS PROBE', '250 km • 92.8° • T: 111.1 min');
   }
 
   // ── 4. GEOMETRY UTILITIES ──

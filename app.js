@@ -121,7 +121,7 @@ const MISSIONS = {
     altitudeKm: 250.0,
     periapsis: '250.0 km (Mars Orbit)',
     apoapsis: 'HOHMANN AP',
-    inc: '1.85°',
+    inc: '92.8° (Polar)',
     dvReq: 5600,
     code: 'M-INTERPLANETARY-MARS'
   }
@@ -1190,6 +1190,19 @@ function setupNavigation() {
       } else {
         DOM.canvas3dWrap.style.display = 'block';
         DOM.canvas2dMap.style.display = 'none';
+        if (orbitScene) {
+          if (tabType === '3d') {
+            // Switch to 3D Close-up Orbit
+            if (STATE.mission === 'mars') orbitScene.setStage('mars_orbit');
+            else if (STATE.mission === 'lunar') orbitScene.setStage('lunar_orbit');
+            else orbitScene.setStage('orbit');
+          } else if (tabType === 'traj') {
+            // Switch to Transfer Trajectory
+            if (STATE.mission === 'mars') orbitScene.setStage('interplanetary');
+            else if (STATE.mission === 'lunar') orbitScene.setStage('transfer');
+            else orbitScene.setStage('orbit');
+          }
+        }
       }
     });
   });
